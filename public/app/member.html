@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Member · ViCollab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script>try{const t=localStorage.getItem('vicollab.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<main>
+  <p class="crumbs"><a href="dashboard.html" id="back">Dashboard</a> / <span id="crumb">Member</span></p>
+  <div class="head" id="head"></div>
+  <section class="card mb" aria-label="Date range"><form class="toolbar" id="range" onsubmit="return false"></form></section>
+  <div id="content" aria-live="polite"></div>
+</main>
+
+<script src="mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+const login = new URLSearchParams(location.search).get('m');
+const who = member(login);
+shell('member:' + login);
+const content = $('#content');
+let showAll = false;
+
+if (!who) {
+  $('#head').innerHTML = '<div><h1>Member not found</h1></div>';
+  $('#range').closest('section').hidden = true;
+  stateBlock(content, { kind: 'warn', icon: '?', title: 'We couldn\'t find that member', text: `There is no team member with the login <code>${esc(login || '(none)')}</code>.`, actions: [{ label: 'Back to dashboard', href: 'dashboard.html' }] });
+} else {
+  document.title = `${who.name} · ViCollab`;
+  $('#crumb').textContent = who.name;
+  const range = rangeControls($('#range'), () => { showAll = false; load(); });
+  $('#back').href = `dashboard.html?${rangeQuery()}`;
+  const allTime = () => range.set(Mock.range.presets[0]);
+
+  function header(lastActive) {
+    const days = lastActive ? Math.floor((Date.parse(Mock.range.end + 'T23:59:59Z') - Date.parse(lastActive)) / 864e5) : null;
+    $('#head').innerHTML = `
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <span class="av big" aria-hidden="true">${initials(who.name)}</span>
+        <div><h1>${esc(who.name)}</h1>
+          <p style="margin-top:4px">@${esc(who.login)} · ${esc(who.role)}${lastActive ? ` · last active <b>${fmt.day(lastActive)}</b>` : ''}
+          ${days !== null && days > 14 ? `<span class="badge off" style="margin-left:6px"><span>Inactive ${Math.floor(days / 7)} weeks</span></span>` : ''}</p>
+          <div style="margin-top:10px" aria-label="Skills">${who.skills.map((s) => `<span class="tag">${esc(s)}</span>`).join('')}</div></div>
+      </div>
+      <div class="field" style="min-width:200px"><label for="switch">Switch member</label>
+        <select id="switch">${Mock.members.map((m) => `<option value="${m.login}"${m.login === login ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div>`;
+    $('#switch').onchange = (e) => (location.href = `member.html?m=${e.target.value}&${rangeQuery()}`);
+  }
+
+  async function load() {
+    const s = getState();
+    const all = syncedCommits();
+    header(null);
+    $('#back').href = `dashboard.html?${rangeQuery()}`;
+    if (!s.connected) return stateBlock(content, STATES.notLinked());
+    if (!all) return stateBlock(content, s.lastError ? STATES.syncFailed(s.lastError.message, () => (location.href = 'connect.html')) : STATES.notSynced(async (e) => { e.currentTarget.disabled = true; try { await mockSync(); toast('Sync complete'); } catch (err) { toast('Sync failed', err.message, 'err'); } load(); }));
+    if (!all.length) return stateBlock(content, STATES.emptyRepo(s.syncedRepo));
+
+    const mine = all.filter((c) => c.author === login);
+    const lastActive = mine.filter((c) => !isMerge(c)).map((c) => c.date).sort().pop();
+    header(lastActive);
+
+    const r = range.get(), bad = checkRange(r);
+    if (bad) return stateBlock(content, STATES.badRange(bad, allTime));
+
+    content.classList.add('loading');
+    const res = await scoreApi({ members: Mock.members.map((m) => m.login), since: r.since, until: r.until, commits: all });
+    content.classList.remove('loading');
+    if (!res.ok) return stateBlock(content, res.status === 400 ? STATES.badRange(res.data.error, allTime) : STATES.apiError(res.data.error, load));
+    const me = res.data.members.find((m) => m.author === login);
+
+    // commits for the list: in range, no duplicates (same rule as the API), newest first
+    const from = Date.parse(r.since), to = Date.parse(r.until) + 864e5 - 1, seen = new Set();
+    const list = mine.filter((c) => { const t = Date.parse(c.date); if (seen.has(c.sha) || t < from || t > to) return false; seen.add(c.sha); return true; })
+      .sort((a, b) => b.date.localeCompare(a.date));
+    const scored = list.filter((c) => !isMerge(c));
+    const added = scored.reduce((n, c) => n + c.additions, 0), deleted = scored.reduce((n, c) => n + c.deletions, 0);
+
+    if (!scored.length) {
+      const st = STATES.noCommits(r, allTime);
+      st.title = `${who.name.split(' ')[0]} has no commits in this range`;
+      st.text = `No scored commits between <b>${fmt.day(r.since)}</b> and <b>${fmt.day(r.until)}</b>${lastActive ? `. Last commit was on <b>${fmt.day(lastActive)}</b>` : ''}.`;
+      return stateBlock(content, st);
+    }
+
+    // commits per week over the whole project, weeks outside the range are faded
+    const weeks = Array.from({ length: Mock.range.weeks }, (_, i) => ({ i, n: 0, lines: 0 }));
+    const dedup = new Set();
+    mine.forEach((c) => { if (isMerge(c) || dedup.has(c.sha)) return; dedup.add(c.sha); const w = weeks[weekOf(c.date)]; if (w) { w.n++; w.lines += c.additions + c.deletions; } });
+    const inRange = (i) => { const a = Mock.range.weekStart(i), b = a + 7 * 864e5 - 1; return b >= from && a <= to; };
+
+    const shown = showAll ? list : list.slice(0, 8);
+    const pct = (n) => (added + deleted ? (n / (added + deleted)) * 100 : 0);
+    content.innerHTML = `
+      <div class="grid g4 mb">
+        <div class="stat"><small>Score in range</small><span class="num">${fmt.one(me.score)}</span><span class="hint">${me.score > 60 ? '⚠ above the 60% limit' : `of ${res.data.team.memberCount} members`}</span></div>
+        <div class="stat"><small>Commits</small><span class="num">${me.commits}</span><span class="hint">${fmt.one(me.commitShare)}% of the team's</span></div>
+        <div class="stat"><small>Lines added</small><span class="num">+${fmt.n(added)}</span><span class="hint">in scored commits</span></div>
+        <div class="stat"><small>Lines deleted</small><span class="num">−${fmt.n(deleted)}</span><span class="hint">${fmt.one(me.linesShare)}% of team lines changed</span></div>
+      </div>
+      <div class="grid g3 mb">
+        <section class="card span2" aria-labelledby="wk-h">
+          <h2 id="wk-h">Commits over time</h2>
+          <p class="sub">Scored commits per week across the project. Faded weeks are outside the selected range.</p>
+          <div class="chart" id="weekly" data-label="Commits per week for ${esc(who.name)}"></div>
+          <details class="data"><summary>View as table</summary><div class="tw"><table>
+            <thead><tr><th><span>Week</span></th><th><span>Starts</span></th><th class="n"><span>Commits</span></th><th class="n"><span>Lines changed</span></th></tr></thead>
+            <tbody>${weeks.map((w) => `<tr><td>Week ${w.i + 1}</td><td>${fmt.day(Mock.range.weekStart(w.i))}</td><td class="n">${w.n}</td><td class="n">${fmt.n(w.lines)}</td></tr>`).join('')}</tbody></table></div></details>
+        </section>
+        <section class="card" aria-labelledby="ad-h">
+          <h2 id="ad-h">Lines added vs deleted</h2>
+          <p class="sub">Selected range, scored commits only.</p>
+          <div class="split" role="img" aria-label="${fmt.n(added)} lines added, ${fmt.n(deleted)} lines deleted">
+            <div style="flex:${added || 0.0001};background:var(--bar)"></div><div style="flex:${deleted || 0.0001};background:var(--bar2)"></div></div>
+          <div class="legend"><span><i style="background:var(--bar)"></i>Added ${fmt.n(added)} (${Math.round(pct(added))}%)</span><span><i style="background:var(--bar2)"></i>Deleted ${fmt.n(deleted)} (${Math.round(pct(deleted))}%)</span></div>
+          <dl class="kv" style="margin-top:20px">
+            <dt>Avg per commit</dt><dd>${fmt.n(Math.round((added + deleted) / scored.length))} lines</dd>
+            <dt>Largest commit</dt><dd>${fmt.n(Math.max(...scored.map((c) => c.additions + c.deletions)))} lines</dd>
+            <dt>Last active</dt><dd>${fmt.day(lastActive)}</dd>
+          </dl>
+        </section>
+      </div>
+      <section class="card" aria-labelledby="list-h">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
+          <h2 id="list-h">Commits (${list.length})</h2>
+          <span class="help">${fmt.day(r.since)} – ${fmt.day(r.until)} · newest first</span>
+        </div>
+        <ul class="commits">${shown.map((c) => `<li>
+          <code class="sha" title="${c.sha}">${c.sha.slice(0, 7)}</code>
+          <span class="msg">${esc(c.message)}${isMerge(c) ? '<em>merge · not scored</em>' : ''}</span>
+          <span class="ln"><span class="plus">+${fmt.n(c.additions)}</span> <span class="minus">−${fmt.n(c.deletions)}</span></span>
+          <time datetime="${c.date}">${fmt.time(c.date)}</time></li>`).join('')}</ul>
+        ${list.length > shown.length ? `<div style="margin-top:16px"><button class="btn ghost sm" id="more">Show all ${list.length} commits</button></div>` : ''}
+      </section>`;
+
+    columnChart($('#weekly'), weeks.map((w) => ({
+      label: `W${w.i + 1}`, value: w.n,
+      tip: `<b>Week ${w.i + 1} · ${fmt.short(Mock.range.weekStart(w.i))}</b>${w.n} commits, ${fmt.n(w.lines)} lines${inRange(w.i) ? '' : '<br>(outside selected range)'}`,
+    })));
+    // fade weeks outside the range (again after any redraw on resize)
+    const fade = () => $$('#weekly .col').forEach((c, i) => { if (!inRange(i)) c.style.opacity = '.35'; });
+    fade();
+    new MutationObserver(fade).observe($('#weekly'), { childList: true });
+    // after "Show all", move focus to the first newly shown commit so keyboard users keep their place
+    if ($('#more')) $('#more').onclick = async () => {
+      showAll = true;
+      await load();
+      const next = $$('.commits li')[8];
+      if (next) { next.tabIndex = -1; next.focus(); }
+    };
+  }
+  load();
+}
+</script>
+</body></html>

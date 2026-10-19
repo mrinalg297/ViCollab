@@ -1,0 +1,8 @@
+{
+  "members": ["Isha"],
+  "commits": [
+    { "sha": "e001", "author": "Isha", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "test: scoring unit tests" },
+    { "sha": "e002", "author": "Isha", "additions": 25, "deletions": 5, "date": "2026-03-03T10:00:00Z", "message": "test: api tests" },
+    { "sha": "e003", "author": "Isha", "additions": 15, "deletions": 5, "date": "2026-03-04T10:00:00Z", "message": "docs: test report" }
+  ]
+}

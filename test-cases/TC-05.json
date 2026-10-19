@@ -1,0 +1,9 @@
+{
+  "members": ["Aarav", "Meera"],
+  "commits": [
+    { "sha": "g001", "author": "Aarav", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: skill tags" },
+    { "sha": "g001", "author": "Aarav", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: skill tags" },
+    { "sha": "g001", "author": "Aarav", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: skill tags" },
+    { "sha": "g002", "author": "Meera", "additions": 30, "deletions": 20, "date": "2026-03-03T10:00:00Z", "message": "feat: skill tag picker" }
+  ]
+}

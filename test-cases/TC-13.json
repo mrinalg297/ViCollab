@@ -1,0 +1,9 @@
+{
+  "members": ["Aarav", "Meera"],
+  "commits": [
+    { "sha": "m001", "author": "Aarav", "additions": 0, "deletions": 0, "date": "2026-03-02T10:00:00Z", "message": "chore: empty commit to trigger CI" },
+    { "sha": "m002", "author": "Aarav", "additions": 0, "deletions": 0, "date": "2026-03-03T10:00:00Z", "message": "chore: re-run CI" },
+    { "sha": "m003", "author": "Meera", "additions": 0, "deletions": 0, "date": "2026-03-03T12:00:00Z", "message": "chore: empty commit" },
+    { "sha": "m004", "author": "Meera", "additions": 0, "deletions": 0, "date": "2026-03-04T12:00:00Z", "message": "chore: empty commit" }
+  ]
+}

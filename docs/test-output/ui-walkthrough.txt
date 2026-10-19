@@ -1,0 +1,19 @@
+nav link -> http://localhost:3000/contribution-checker.html
+SAMPLE {"status":"HTTP 200","rows":["Meera | 2 | 297 | 28.6% | 41.3% | 33.7","Aarav | 2 | 224 | 28.6% | 31.2% | 29.6","Isha | 2 | 120 | 28.6% | 16.7% | 23.8","Kabir | 1 | 78 | 14.3% | 10.8% | 12.9"],"warnings":[],"errors":[],"message":""}
+TC-01 {"status":"HTTP 200","rows":["Aarav | 2 | 100 | 33.3% | 33.3% | 33.3","Kabir | 2 | 100 | 33.3% | 33.3% | 33.3","Meera | 2 | 100 | 33.3% | 33.3% | 33.3"],"warnings":[],"errors":[],"message":""}
+TC-02 {"status":"HTTP 200","rows":["Aarav | 6 | 700 | 60.0% | 70.0% | 64.0","Meera | 2 | 200 | 20.0% | 20.0% | 20.0","Kabir | 2 | 100 | 20.0% | 10.0% | 16.0"],"warnings":["Aarav has 64% of the score (above 60%), work may be unevenly split"],"errors":[],"message":""}
+TC-03 {"status":"HTTP 200","rows":["Isha | 3 | 100 | 100.0% | 100.0% | 100.0"],"warnings":[],"errors":[],"message":""}
+TC-04 {"status":"HTTP 200","rows":["Aarav | 2 | 60 | 50.0% | 60.0% | 54.0","Kabir | 1 | 20 | 25.0% | 20.0% | 23.0","Meera | 1 | 20 | 25.0% | 20.0% | 23.0","Isha | 0 | 0 | 0.0% | 0.0% | 0.0"],"warnings":["Isha has 0 valid commits"],"errors":[],"message":""}
+TC-05 {"status":"HTTP 200","rows":["Aarav | 1 | 50 | 50.0% | 50.0% | 50.0","Meera | 1 | 50 | 50.0% | 50.0% | 50.0"],"warnings":[],"errors":[],"message":""}
+TC-06 {"status":"HTTP 200","rows":["Kabir | 1 | 40 | 33.3% | 40.0% | 36.0","Aarav | 1 | 30 | 33.3% | 30.0% | 32.0","Meera | 1 | 30 | 33.3% | 30.0% | 32.0"],"warnings":[],"errors":[],"message":""}
+TC-07 {"status":"HTTP 200","rows":["Meera | 1 | 60 | 50.0% | 60.0% | 54.0","Aarav | 1 | 40 | 50.0% | 40.0% | 46.0"],"warnings":[],"errors":["#2 · i003 missing author","#3 · i004 additions must be a whole number of 0 or more","#4 · i005 invalid date","#5 · i006 additions must be a whole number of 0 or more"],"message":""}
+TC-08 {"status":"HTTP 200","rows":["Aarav | 1 | 50 | 50.0% | 50.0% | 50.0","Meera | 1 | 50 | 50.0% | 50.0% | 50.0","Kabir | 0 | 0 | 0.0% | 0.0% | 0.0"],"warnings":["Kabir has 0 valid commits"],"errors":[],"message":""}
+TC-09 {"status":"HTTP 400","rows":[],"warnings":[],"errors":[],"message":"\"commits\" must be a non-empty array of commit objects"}
+TC-10 {"status":"HTTP 400","rows":[],"warnings":[],"errors":[],"message":"\"commits\" must be a non-empty array of commit objects"}
+TC-11 {"status":"HTTP 400","rows":[],"warnings":[],"errors":[],"message":"Request body is not valid JSON"}
+TC-12 {"status":"HTTP 200","rows":["Aarav | 3 | 60 | 60.0% | 60.0% | 60.0","Meera | 2 | 40 | 40.0% | 40.0% | 40.0"],"warnings":[],"errors":[],"message":""}
+TC-13 {"status":"HTTP 200","rows":["Aarav | 2 | 0 | 50.0% | 0.0% | 30.0","Meera | 2 | 0 | 50.0% | 0.0% | 30.0"],"warnings":[],"errors":[],"message":""}
+TC-14 {"status":"HTTP 200","rows":[],"warnings":[],"errors":[],"message":"Health: ok · contribution-scoring · 2026-10-19T15:46:21.787Z"}
+XSS check: hacked = false | cell text = <img src=x onerror="window.hacked=1">
+phone width horizontal overflow: false
+console errors: ["Failed to load resource: the server responded with a status of 400 (Bad Request)","Failed to load resource: the server responded with a status of 400 (Bad Request)","Failed to load resource: the server responded with a status of 400 (Bad Request)"]

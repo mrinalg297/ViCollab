@@ -1,0 +1,11 @@
+{
+  "members": ["Aarav", "Meera", "Kabir"],
+  "commits": [
+    { "sha": "a1f001", "author": "Aarav", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: github oauth callback" },
+    { "sha": "a1f002", "author": "Aarav", "additions": 30, "deletions": 20, "date": "2026-03-04T11:00:00Z", "message": "fix: token refresh" },
+    { "sha": "b2e001", "author": "Meera", "additions": 45, "deletions": 5, "date": "2026-03-02T12:00:00Z", "message": "feat: dashboard layout" },
+    { "sha": "b2e002", "author": "Meera", "additions": 35, "deletions": 15, "date": "2026-03-05T09:30:00Z", "message": "style: dashboard cards" },
+    { "sha": "c3d001", "author": "Kabir", "additions": 25, "deletions": 25, "date": "2026-03-03T14:00:00Z", "message": "feat: socket.io chat room" },
+    { "sha": "c3d002", "author": "Kabir", "additions": 50, "deletions": 0, "date": "2026-03-06T16:00:00Z", "message": "feat: typing indicator" }
+  ]
+}

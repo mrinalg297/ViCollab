@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ViCollab: contribution checker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* same tokens as ViCollab_Home_Page.html */
+:root{--bg:#EEF0F7;--ink:#0E1233;--mut:#545A7A;--card:#fff;--line:rgba(14,18,51,.14);--blue:#3040FF;--mint:#2FCB8A;--warn:#FF5A47;--yel:#FFD84D;--c0:rgba(14,18,51,.06);--c1:#C8F0DC;--c2:#82DDB5;--c3:#2FCB8A;--c4:#14966A;box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0A0D24;--ink:#ECEEFF;--mut:#9AA0C8;--card:#141838;--line:rgba(236,238,255,.16);--blue:#5A68FF;--c0:rgba(236,238,255,.06);--c1:#14503B;--c2:#1B7A57;--c3:#2FCB8A;--c4:#8CF5C6}}
+:root[data-theme=dark]{--bg:#0A0D24;--ink:#ECEEFF;--mut:#9AA0C8;--card:#141838;--line:rgba(236,238,255,.16);--blue:#5A68FF;--c0:rgba(236,238,255,.06);--c1:#14503B;--c2:#1B7A57;--c3:#2FCB8A;--c4:#8CF5C6}
+*{box-sizing:inherit;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 1.05rem/1.6 'Hanken Grotesk',system-ui,sans-serif;overflow-x:hidden}
+h1,h2,h3,.num{font-family:'Bricolage Grotesque','Arial Narrow',system-ui,sans-serif}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+@media(pointer:fine){html,a,button,select{cursor:none}textarea{cursor:text}}
+.cd,.cr{display:none;position:fixed;left:0;top:0;pointer-events:none;z-index:999;mix-blend-mode:difference}
+@media(pointer:fine){.cd,.cr{display:block}}
+.cd{width:8px;height:8px;margin:-4px;border-radius:50%;background:#fff}
+.cr{width:38px;height:38px;margin:-19px;border-radius:50%;border:1.5px solid #fff;transition:width .3s,height .3s,margin .3s}
+.cr.big{width:88px;height:88px;margin:-44px}
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px clamp(16px,4vw,48px);background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:10px;font:800 1.35rem 'Bricolage Grotesque',sans-serif;text-decoration:none;letter-spacing:-.02em}
+.nav nav{display:flex;gap:28px}.nav nav a{text-decoration:none;font-weight:500}.nav nav a:hover,.nav nav a[aria-current]{color:var(--blue)}
+@media(max-width:700px){.nav nav{display:none}}
+.btn{display:inline-block;padding:13px 22px;border:0;border-radius:99px;background:var(--ink);color:var(--bg);font:600 1rem 'Hanken Grotesk',sans-serif;text-decoration:none}
+.btn:hover{background:var(--blue);color:#fff}.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}.btn.ghost:hover{background:var(--ink);color:var(--bg)}.btn.sm{padding:9px 16px;font-size:.95rem}
+.btn:disabled{opacity:.5}
+main{padding:110px clamp(16px,5vw,64px) 80px;max-width:1360px;margin:0 auto}
+h1{font-size:clamp(2.6rem,7vw,6rem);line-height:.95;letter-spacing:-.035em}
+h1 span{color:transparent;-webkit-text-stroke:2px var(--ink)}
+.lede{max-width:60ch;margin:20px 0 40px;font-size:1.15rem;color:var(--mut)}
+.grid{display:grid;grid-template-columns:5fr 7fr;gap:24px;align-items:start}
+@media(max-width:960px){.grid{grid-template-columns:1fr}}
+.pn{background:var(--card);border:1.5px solid var(--line);border-radius:30px;padding:clamp(18px,3vw,30px);min-width:0}
+.pn h2{font-size:1.7rem;letter-spacing:-.02em;margin-bottom:6px}
+.pn small,.hint{color:var(--mut);font-size:.92rem}
+label{display:block;font-weight:600;margin:18px 0 6px}
+select,textarea{width:100%;font:500 .9rem/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:16px;padding:12px 14px}
+select{font-family:'Hanken Grotesk',sans-serif;font-size:1rem}
+textarea{min-height:380px;resize:vertical;tab-size:2;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+textarea:focus,select:focus{border-color:var(--blue);outline:none}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.exp{margin-top:16px;padding:14px 16px;border-radius:16px;background:var(--c0);font-size:.95rem;display:none}
+.exp.on{display:block}.exp b{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{display:inline-block;padding:6px 14px;border-radius:99px;font-weight:600;color:#0E1233;background:var(--c0)}
+.pill.ok{background:var(--mint)}.pill.bad{background:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
+@media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+.st{background:var(--c0);border-radius:18px;padding:12px 14px}.st .num{font-size:1.9rem;font-weight:800;line-height:1.1}.st small{display:block}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.98rem}
+th{text-align:left;font-weight:600;color:var(--mut);font-size:.85rem;padding:8px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+td{padding:12px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.sc{min-width:150px}.sc .bar{display:flex;align-items:center;gap:10px}.sc i{display:block;height:10px;border-radius:9px;background:var(--mint);min-width:2px}
+.sc b{font:800 1.15rem 'Bricolage Grotesque',sans-serif;min-width:4.2ch;text-align:right}
+tr.dom .sc i{background:var(--yel)}tr.zero td{color:var(--mut)}tr.zero .sc i{background:var(--warn)}
+.list{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+.list li{padding:10px 14px;border-radius:14px;font-weight:500}
+.list.w li{background:var(--yel);color:#0E1233}.list.e li{background:color-mix(in srgb,var(--warn) 22%,var(--card));}
+.list code{font:600 .88rem ui-monospace,Menlo,monospace}
+h3{font-size:1.15rem;margin-top:22px}
+.empty{padding:40px 0;color:var(--mut)}
+.err{margin-top:18px;padding:16px 18px;border-radius:16px;background:var(--warn);color:#0E1233;font-weight:600}
+details{margin-top:22px}summary{font-weight:600}
+pre{margin-top:10px;padding:14px;border-radius:14px;background:var(--c0);font:500 .82rem/1.5 ui-monospace,Menlo,monospace;overflow:auto;max-height:340px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body>
+<div class="cd"></div><div class="cr"></div>
+<header class="nav"><a class="logo" href="ViCollab_Home_Page.html"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect width="11" height="11" rx="2" fill="#3040FF"/><rect x="13" width="11" height="11" rx="2" fill="#82DDB5"/><rect y="13" width="11" height="11" rx="2" fill="#C8F0DC"/><rect x="13" y="13" width="11" height="11" rx="2" fill="#2FCB8A"/></svg>ViCollab</a>
+<nav><a href="ViCollab_Home_Page.html">Home</a><a href="contribution-checker.html" aria-current="page">Contribution checker</a></nav>
+<a class="btn sm ghost" href="/api/health" target="_blank" rel="noopener">API health</a></header>
+
+<main>
+<h1>Contribution <span>checker</span></h1>
+<p class="lede">Paste a team's commits as JSON, or load the sample, and see each member's share of the work. Commits are mocked GitHub data. The box is sent to <code>POST /api/contributions/score</code> exactly as typed, so broken JSON is a valid test too.</p>
+
+<div class="grid">
+<section class="pn" aria-labelledby="in-h">
+  <h2 id="in-h">Request</h2>
+  <small>Body: <code>{ members?, since?, until?, commits: [{ sha, author, additions, deletions, date, message }] }</code></small>
+  <label for="tc">Load a test case</label>
+  <select id="tc"><option value="">Choose TC-01 to TC-14…</option></select>
+  <div class="exp" id="exp"><b>Expected result</b><span></span></div>
+  <label for="body">Request body (JSON)</label>
+  <textarea id="body" spellcheck="false" placeholder='{ "commits": [ ... ] }'></textarea>
+  <div class="row">
+    <button class="btn" id="go">Score contributions</button>
+    <button class="btn ghost" id="sample">Load sample data</button>
+  </div>
+  <div class="row">
+    <button class="btn sm ghost" id="fmt">Format JSON</button>
+    <button class="btn sm ghost" id="clr">Clear</button>
+    <button class="btn sm ghost" id="health">GET /api/health</button>
+  </div>
+</section>
+
+<section class="pn" aria-labelledby="out-h" aria-live="polite">
+  <div class="top"><h2 id="out-h">Results</h2><span class="pill" id="status">No request yet</span></div>
+  <div id="out"><p class="empty">Load sample data or a test case, then press <b>Score contributions</b>.</p></div>
+  <details><summary>Raw response</summary><pre id="raw">(nothing yet)</pre></details>
+</section>
+</div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const box = $('#body'), out = $('#out'), statusPill = $('#status'), raw = $('#raw');
+const one = (n) => Number(n).toFixed(1); // spec: 1 decimal place
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// sample team from the home page, with one merge commit and one duplicate thrown in
+const SAMPLE = {
+  members: ['Aarav', 'Meera', 'Kabir', 'Isha'],
+  since: '2026-03-01',
+  until: '2026-03-31',
+  commits: [
+    { sha: 'a41f9c2', author: 'Aarav', additions: 120, deletions: 18, date: '2026-03-02T10:15:00Z', message: 'feat: github oauth callback' },
+    { sha: '9c01de4', author: 'Aarav', additions: 64, deletions: 22, date: '2026-03-05T14:02:00Z', message: 'feat: contribution scoring endpoint' },
+    { sha: '3fa7b10', author: 'Meera', additions: 210, deletions: 40, date: '2026-03-03T09:40:00Z', message: 'feat: faculty dashboard layout' },
+    { sha: '5d2e8aa', author: 'Meera', additions: 35, deletions: 12, date: '2026-03-09T11:20:00Z', message: 'style: dashboard cards' },
+    { sha: '7be03d1', author: 'Kabir', additions: 48, deletions: 30, date: '2026-03-04T17:55:00Z', message: 'fix: socket reconnect on idle' },
+    { sha: 'e92c4a8', author: 'Isha', additions: 90, deletions: 5, date: '2026-03-06T08:30:00Z', message: 'test: contribution scoring' },
+    { sha: 'b13c77f', author: 'Isha', additions: 22, deletions: 3, date: '2026-03-10T16:45:00Z', message: 'docs: test report draft' },
+    { sha: 'c0ffee1', author: 'Aarav', additions: 300, deletions: 60, date: '2026-03-07T12:00:00Z', message: "Merge pull request #12 from team20/dashboard" },
+    { sha: '7be03d1', author: 'Kabir', additions: 48, deletions: 30, date: '2026-03-04T17:55:00Z', message: 'fix: socket reconnect on idle' }
+  ]
+};
+
+let cases = [];
+fetch('/test-cases/index.json').then((r) => r.json()).then((list) => {
+  cases = list;
+  $('#tc').innerHTML += list.map((c) => `<option value="${c.id}">${c.id} · ${esc(c.scenario)}</option>`).join('');
+}).catch(() => { $('#tc').disabled = true; });
+
+$('#tc').onchange = async (e) => {
+  const c = cases.find((x) => x.id === e.target.value);
+  const exp = $('#exp');
+  if (!c) { exp.classList.remove('on'); return; }
+  exp.querySelector('span').textContent = c.expected;
+  exp.classList.add('on');
+  if (!c.file) { box.value = ''; return; } // TC-14 is the health check, no body
+  box.value = await (await fetch('/test-cases/' + c.file)).text();
+  box.scrollTo(0, 0);
+};
+
+$('#sample').onclick = () => { box.value = JSON.stringify(SAMPLE, null, 2); box.scrollTo(0, 0); $('#tc').value = ''; $('#exp').classList.remove('on'); };
+$('#clr').onclick = () => { box.value = ''; };
+$('#fmt').onclick = () => {
+  try { box.value = JSON.stringify(JSON.parse(box.value), null, 2); }
+  catch (err) { showError('Not valid JSON, so it can\'t be formatted: ' + err.message); }
+};
+
+function setStatus(code) {
+  statusPill.textContent = code ? 'HTTP ' + code : 'Network error';
+  statusPill.className = 'pill ' + (code >= 200 && code < 300 ? 'ok' : 'bad');
+}
+function showError(msg) { out.innerHTML = `<div class="err">${esc(msg)}</div>`; }
+
+async function call(method, url, body) {
+  const btns = document.querySelectorAll('button');
+  btns.forEach((b) => (b.disabled = true));
+  try {
+    const res = await fetch(url, { method, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body });
+    const text = await res.text();
+    setStatus(res.status);
+    let data;
+    try { data = JSON.parse(text); raw.textContent = JSON.stringify(data, null, 2); }
+    catch { raw.textContent = text; return showError('Server did not return JSON'); }
+    return { res, data };
+  } catch (err) {
+    setStatus(0); raw.textContent = String(err);
+    showError('Could not reach the server. Is npm start running?');
+  } finally {
+    btns.forEach((b) => (b.disabled = false));
+  }
+}
+
+$('#go').onclick = async () => {
+  const r = await call('POST', '/api/contributions/score', box.value); // sent as typed, on purpose
+  if (!r) return;
+  if (!r.res.ok) return showError(r.data.error || 'Request failed');
+  render(r.data);
+};
+
+$('#health').onclick = async () => {
+  const r = await call('GET', '/api/health');
+  if (r) out.innerHTML = `<p class="empty">Health: <b>${esc(r.data.status)}</b> · ${esc(r.data.service)} · ${esc(r.data.time)}</p>`;
+};
+
+function render(d) {
+  const t = d.team, s = d.skipped;
+  const stats = [[t.memberCount, 'members'], [t.totalCommits, 'valid commits'], [t.totalLinesChanged, 'lines changed'],
+    [s.duplicates + s.merges + s.outsideDateRange, `skipped (${s.duplicates} dup, ${s.merges} merge, ${s.outsideDateRange} date)`]];
+  const rows = d.members.map((m) => {
+    const cls = m.commits === 0 ? 'zero' : (t.memberCount >= 2 && m.score > 60 ? 'dom' : '');
+    return `<tr class="${cls}"><td><b>${esc(m.author)}</b></td><td class="n">${m.commits}</td><td class="n">${m.linesChanged}</td>
+      <td class="n">${one(m.commitShare)}%</td><td class="n">${one(m.linesShare)}%</td>
+      <td class="sc"><span class="bar"><b>${one(m.score)}</b><i style="width:${Math.max(0, Math.min(100, m.score))}%"></i></span></td></tr>`;
+  }).join('');
+  out.innerHTML = `<div class="stats">${stats.map(([n, l]) => `<div class="st"><span class="num">${n}</span><small>${l}</small></div>`).join('')}</div>
+    ${d.members.length ? `<div class="tw"><table><thead><tr><th>Member</th><th class="n">Commits</th><th class="n">Lines changed</th><th class="n">Commit share</th><th class="n">Lines share</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="empty">No members to show.</p>'}
+    <h3>Warnings (${d.warnings.length})</h3>${d.warnings.length ? `<ul class="list w">${d.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="hint">None</p>'}
+    <h3>Errors (${d.errors.length})</h3>${d.errors.length ? `<ul class="list e">${d.errors.map((e) => `<li><code>#${e.index}${e.sha ? ' · ' + esc(e.sha) : ''}</code> ${esc(e.reason)}</li>`).join('')}</ul>` : '<p class="hint">None</p>'}`;
+}
+
+// custom cursor, same as the home page
+if (matchMedia('(pointer:fine)').matches) {
+  const d = $('.cd'), r = $('.cr'); let x = 0, y = 0, rx = 0, ry = 0;
+  addEventListener('pointermove', (e) => { x = e.clientX; y = e.clientY; d.style.transform = `translate(${x}px,${y}px)`; });
+  (function f() { rx += (x - rx) * 0.16; ry += (y - ry) * 0.16; r.style.transform = `translate(${rx}px,${ry}px)`; requestAnimationFrame(f); })();
+  document.addEventListener('pointerover', (e) => r.classList.toggle('big', !!e.target.closest('a,button')));
+}
+</script>
+</body></html>

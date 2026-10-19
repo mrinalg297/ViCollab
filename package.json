@@ -1,0 +1,29 @@
+{
+  "name": "vicollab-contribution-scoring",
+  "version": "1.0.0",
+  "description": "ViCollab contribution scoring module (mocked GitHub commits) with manual and automated tests",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "jest --coverage",
+    "postman": "node scripts/build-postman.js",
+    "test:postman": "newman run postman/ViCollab_Contribution_Scoring.postman_collection.json --env-var baseUrl=http://localhost:3000"
+  },
+  "author": "Team 20 - Mrinal Gupta, Vaaman Bansal",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "newman": "^6.2.3",
+    "supertest": "^7.1.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js"
+    ]
+  }
+}

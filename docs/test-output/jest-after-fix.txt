@@ -1,0 +1,83 @@
+PASS tests/api.test.js
+  POST /api/contributions/score
+    ✓ TC-01 balanced team returns 200 with equal scores (75 ms)
+    ✓ TC-02 dominant member returns a warning (12 ms)
+    ✓ TC-03 single member scores 100 (8 ms)
+    ✓ TC-04 zero-commit member is listed with a warning (5 ms)
+    ✓ TC-05 duplicates are skipped (5 ms)
+    ✓ TC-06 merge commits are skipped (6 ms)
+    ✓ TC-07 invalid commits come back in errors with status 200 (4 ms)
+    ✓ TC-08 date filter is applied (4 ms)
+    ✓ TC-08 invalid since returns 400 (6 ms)
+    ✓ TC-09 empty commit list returns 400 with a clear message (4 ms)
+    ✓ TC-10 missing commits returns 400 (4 ms)
+    ✓ TC-10 no body at all returns 400 (3 ms)
+    ✓ TC-10 a top-level array instead of an object returns 400 (3 ms)
+    ✓ TC-11 JSON sent with the wrong Content-Type explains the header (DEF-03) (3 ms)
+    ✓ TC-11 body over 1 MB returns 413 JSON (66 ms)
+    ✓ TC-11 malformed JSON returns a 400 JSON error and the server keeps working (14 ms)
+    ✓ TC-12 exactly 60% gives no warning (4 ms)
+    ✓ TC-13 zero lines changed gives numbers, not NaN/null (7 ms)
+  other routes
+    ✓ TC-14 GET /api/health returns ok (3 ms)
+    ✓ TC-14 unknown API route returns JSON 404 (3 ms)
+    ✓ TC-14 home page and checker page are served, home links to the checker (12 ms)
+  unexpected errors
+    ✓ TC-11 a crash inside scoring returns a JSON 500 without the stack trace (41 ms)
+
+PASS tests/scoring.test.js (5.088 s)
+  TC-01 balanced team
+    ✓ TC-01 every member gets an equal third (20 ms)
+  TC-02 one dominant member
+    ✓ TC-02 shares and scores use 0.6 / 0.4 weights (2 ms)
+    ✓ TC-02 warns that Aarav is above 60% (1 ms)
+    ✓ TC-02 members are sorted by score, highest first (2 ms)
+  TC-03 single-member team
+    ✓ TC-03 single member gets 100 and no dominance warning (1 ms)
+  TC-04 member with zero commits
+    ✓ TC-04 listed member with no commits is shown with zeros and a warning (2 ms)
+    ✓ TC-04 author name matching ignores case and spaces (no false zero-commit warning) (1 ms)
+  TC-05 duplicate shas
+    ✓ TC-05 a repeated sha is only counted once (1 ms)
+  TC-06 merge commits
+    ✓ TC-06 messages starting with "Merge" are dropped, "Mergesort" is kept (2 ms)
+  TC-06 merge commits (message is optional)
+    ✓ TC-06 a commit with no message is counted normally (1 ms)
+  TC-07 invalid commit data
+    ✓ TC-07 bad commits go to errors and the valid ones are still scored (1 ms)
+    ✓ TC-07 other kinds of bad entries are reported, not thrown
+    ✓ TC-07 when every commit is invalid the result is empty with a warning (1 ms)
+    ✓ TC-07 vague or impossible date strings are reported as invalid (DEF-01) (1 ms)
+    ✓ TC-07 real ISO dates in different forms are still accepted (DEF-01)
+  TC-08 date filter
+    ✓ TC-08 since/until keep only commits in range, until day is inclusive (2 ms)
+    ✓ TC-08 only since, or only until, also works (1 ms)
+    ✓ TC-08 an until value with a time is used as given (1 ms)
+    ✓ TC-08 bad filter dates are rejected (25 ms)
+  TC-09 / TC-10 empty or missing commit list
+    ✓ TC-09 empty commit list throws a clear input error (2 ms)
+    ✓ TC-10 missing commits (or no argument at all) throws the same error (6 ms)
+    ✓ TC-10 members must be a list of names (2 ms)
+  TC-12 dominance boundary
+    ✓ TC-12 a score of exactly 60.0 does not trigger the warning (1 ms)
+    ✓ TC-12 a score of exactly 60.05 rounds to 60.1 and is warned about (DEF-02) (1 ms)
+    ✓ TC-12 halves round up, e.g. 21.25 -> 21.3 (DEF-02) (1 ms)
+    ✓ TC-12 rounding matches exact fraction maths on a grid of team sizes (DEF-02) (4842 ms)
+    ✓ TC-12 just above 60 does trigger it (1 ms)
+  TC-13 zero lines changed
+    ✓ TC-13 only empty commits: no NaN, linesShare is 0 (1 ms)
+  general
+    ✓ TC-01 the input array is not changed (1 ms)
+
+------------|---------|----------|---------|---------|-------------------
+File        | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+------------|---------|----------|---------|---------|-------------------
+All files   |     100 |      100 |     100 |     100 |                   
+ app.js     |     100 |      100 |     100 |     100 |                   
+ scoring.js |     100 |      100 |     100 |     100 |                   
+------------|---------|----------|---------|---------|-------------------
+Test Suites: 2 passed, 2 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        5.592 s
+Ran all test suites.

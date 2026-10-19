@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Contribution dashboard · ViCollab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script>try{const t=localStorage.getItem('vicollab.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<main>
+  <p class="crumbs"><a href="dashboard.html">Workspace</a> / Dashboard</p>
+  <div class="head">
+    <div><h1>Contribution dashboard</h1><p id="subtitle">Team 20 · ViCollab</p></div>
+    <button class="btn ghost" id="export" disabled><span aria-hidden="true">⤓</span>Export CSV</button>
+  </div>
+
+  <div id="sync-banner"></div>
+
+  <section class="card mb" id="filters" aria-label="Filters">
+    <form class="toolbar" id="range" onsubmit="return false"></form>
+    <div class="toolbar" style="margin-top:16px;align-items:flex-end">
+      <div class="field" style="max-width:340px">
+        <label for="search">Find a member</label>
+        <input type="search" id="search" placeholder="Name or GitHub login" autocomplete="off" aria-describedby="count">
+      </div>
+      <p class="help" id="count" aria-live="polite" style="margin:0 0 12px"></p>
+    </div>
+  </section>
+
+  <div id="warnings"></div>
+  <div id="content" aria-live="polite"></div>
+</main>
+
+<script src="mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+shell('dashboard');
+const content = $('#content');
+let result = null;                        // last API response
+let sort = { key: 'score', dir: 'desc' };
+const range = rangeControls($('#range'), () => load());
+const allTime = () => range.set(Mock.range.presets[0]);
+
+async function doSync(btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin" aria-hidden="true"></span>Syncing…'; }
+  try { await mockSync(); toast('Sync complete', `Commits from ${getState().syncedRepo} are ready`); }
+  catch (err) { toast('Sync failed', err.message, 'err'); }
+  load();
+}
+
+function showOnly(stateArgs, filters = true) {
+  $('#filters').hidden = !filters;
+  $('#warnings').innerHTML = '';
+  $('#export').disabled = true;
+  result = null;
+  stateBlock(content, stateArgs);
+  $('#count').textContent = '';
+}
+
+async function load() {
+  const s = getState();
+  $('#subtitle').innerHTML = `${esc(Mock.team.name)}${s.syncedRepo ? ` · <code>${esc(s.syncedRepo)}</code> · synced ${fmt.ago(s.lastSynced)}` : ''}`;
+  $('#sync-banner').innerHTML = '';
+
+  // 1. GitHub not linked / not synced / sync failed
+  if (!s.connected) return showOnly(STATES.notLinked(), false);
+  if (!s.syncedRepo && s.lastError) return showOnly({ ...STATES.syncFailed(s.lastError.message, (e) => doSync(e.currentTarget)) }, false);
+  if (!s.syncedRepo) return showOnly(STATES.notSynced((e) => doSync(e.currentTarget)), false);
+  if (s.lastError) {
+    $('#sync-banner').innerHTML = `<div class="banner err" role="alert"><span class="bi" aria-hidden="true">⚠</span><div><b>The latest sync failed</b>Showing data from the last good sync (${fmt.time(s.lastSynced)}). ${esc(s.lastError.message)}.</div><button class="btn sm" id="retry-sync">Retry sync</button></div>`;
+    $('#retry-sync').onclick = (e) => doSync(e.currentTarget);
+  }
+
+  const commits = syncedCommits();
+  if (!commits.length) return showOnly(STATES.emptyRepo(s.syncedRepo), false);
+
+  // 2. bad range is caught before calling the API
+  $('#filters').hidden = false;
+  const r = range.get();
+  const bad = checkRange(r);
+  if (bad) return showOnly(STATES.badRange(bad, allTime));
+
+  // 3. ask the scoring API
+  content.classList.add('loading');
+  $('#count').innerHTML = '<span class="spin" aria-hidden="true" style="display:inline-block;vertical-align:-3px"></span> Updating scores…';
+  const res = await scoreApi({ members: Mock.members.map((m) => m.login), since: r.since, until: r.until, commits });
+  content.classList.remove('loading');
+  if (!res.ok) {
+    return showOnly(res.status === 400 ? STATES.badRange(res.data.error, allTime) : STATES.apiError(res.data.error, load));
+  }
+  if (res.data.team.totalCommits === 0) return showOnly(STATES.noCommits(r, allTime));
+  result = res.data;
+  $('#export').disabled = false;
+  render();
+}
+
+function render() {
+  const d = result, q = $('#search').value.trim().toLowerCase();
+  const matches = (m) => !q || m.author.includes(q) || nameOf(m.author).toLowerCase().includes(q);
+  const shown = d.members.filter(matches);
+  $('#count').textContent = q ? `Showing ${shown.length} of ${d.members.length} members` : `${d.members.length} members`;
+
+  // warnings from the API: dominance first (yellow), zero-commit members as one info line
+  const dom = d.warnings.filter((w) => w.includes('above 60%'));
+  const zero = d.members.filter((m) => m.commits === 0);
+  $('#warnings').innerHTML = dom.map((w) => {
+    const who = d.members.find((m) => w.startsWith(m.author));
+    return `<div class="banner warn" role="alert"><span class="bi" aria-hidden="true">⚠</span><div><b>One member dominates this range</b>${esc(friendly(w))}. Check that work is being shared.</div>${who ? `<a class="btn sm ghost" href="member.html?m=${who.author}&${rangeQuery()}">View ${esc(nameOf(who.author).split(' ')[0])}</a>` : ''}</div>`;
+  }).join('') + (zero.length ? `<div class="banner info" role="status"><span class="bi" aria-hidden="true">ⓘ</span><div><b>No commits in this range</b>${zero.map((m) => esc(nameOf(m.author))).join(', ')} made no valid commits between ${fmt.day(range.get().since)} and ${fmt.day(range.get().until)}.</div></div>` : '');
+
+  const sk = d.skipped, skippedTotal = sk.duplicates + sk.merges;
+  const stats = [
+    ['Members', d.team.memberCount, `${d.team.memberCount - zero.length} active in range`],
+    ['Commits scored', fmt.n(d.team.totalCommits), `${fmt.day(range.get().since)} – ${fmt.day(range.get().until)}`],
+    ['Lines changed', fmt.n(d.team.totalLinesChanged), 'additions + deletions'],
+    ['Not scored', skippedTotal, `${sk.merges} merge, ${sk.duplicates} duplicate${d.errors.length ? `, ${d.errors.length} invalid` : ''}`],
+  ];
+
+  const rows = [...shown].sort((a, b) => {
+    const k = sort.key, v = k === 'author' ? nameOf(a.author).localeCompare(nameOf(b.author)) : a[k] - b[k];
+    return sort.dir === 'asc' ? v : -v;
+  });
+  const cols = [['author', 'Member', ''], ['commits', 'Commits', 'n'], ['linesChanged', 'Lines changed', 'n'], ['commitShare', 'Commit share', 'n'], ['linesShare', 'Lines share', 'n'], ['score', 'Score', 'n']];
+  const status = (m) => m.commits === 0 ? '<span class="badge off"><span>No commits</span></span>'
+    : d.members.length >= 2 && m.score > 60 ? '<span class="badge wait"><span>Above 60%</span></span>' : '<span class="badge ok"><span>OK</span></span>';
+
+  content.innerHTML = `
+    <div class="grid g4 mb">${stats.map(([l, v, h]) => `<div class="stat"><small>${l}</small><span class="num">${v}</span><span class="hint">${esc(h)}</span></div>`).join('')}</div>
+    <section class="card mb" aria-labelledby="chart-h">
+      <h2 id="chart-h">Contribution score by member</h2>
+      <p class="sub">Score = 0.6 × commit share + 0.4 × lines share. Line marks the 60% limit.</p>
+      ${shown.length ? `<div class="hbars" id="bars">
+        ${[...shown].sort((a, b) => b.score - a.score).map((m) => {
+          const hi = d.members.length >= 2 && m.score > 60;
+          return `<div class="hb"><a class="lab" href="member.html?m=${m.author}&${rangeQuery()}">${esc(nameOf(m.author))}</a>
+            <div class="tr"><span class="fill${hi ? ' hi' : ''}" style="width:${m.score}%" tabindex="0" role="img"
+              aria-label="${esc(nameOf(m.author))}: score ${fmt.one(m.score)}${hi ? ', above the 60% limit' : ''}. ${m.commits} commits, ${fmt.n(m.linesChanged)} lines"
+              data-tip="<b>${esc(nameOf(m.author))}</b>${m.commits} commits · ${fmt.n(m.linesChanged)} lines<br>Commit share ${fmt.one(m.commitShare)}% · Lines share ${fmt.one(m.linesShare)}%"></span>
+              <span class="val" style="left:${m.score}%">${fmt.one(m.score)}${hi ? ' ⚠' : ''}</span></div></div>`;
+        }).join('')}
+        <div class="limit" id="limit"><span>60%</span></div>
+      </div>
+      <div class="axis" aria-hidden="true"><span></span><div><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>`
+      : `<p class="help" style="margin-top:14px">No members match “${esc(q)}”. <button class="btn sm ghost" id="clear">Clear search</button></p>`}
+      <div class="tip" aria-hidden="true"></div>
+    </section>
+    <section class="card" aria-labelledby="table-h">
+      <h2 id="table-h">Members</h2>
+      <p class="sub">Select a column heading to sort. Select a name for commits and activity.</p>
+      <div class="tw" tabindex="0" role="region" aria-label="Members table (scrolls sideways on small screens)"><table>
+        <caption class="sr">Contribution per member, sorted by ${cols.find((c) => c[0] === sort.key)[1]} ${sort.dir === 'asc' ? 'ascending' : 'descending'}</caption>
+        <thead><tr>${cols.map(([k, l, c]) => `<th class="${c}" ${sort.key === k ? `aria-sort="${sort.dir === 'asc' ? 'ascending' : 'descending'}"` : ''}><button data-sort="${k}">${l}<span class="ar" aria-hidden="true"></span></button></th>`).join('')}<th><span>Status</span></th></tr></thead>
+        <tbody>${rows.map((m) => `<tr class="${m.commits ? '' : 'dim'}">
+          <td><a class="who" href="member.html?m=${m.author}&${rangeQuery()}"><span class="av" aria-hidden="true">${initials(nameOf(m.author))}</span><span><b>${esc(nameOf(m.author))}</b><small>@${esc(m.author)} · ${esc(member(m.author).role)}</small></span></a></td>
+          <td class="n">${m.commits}</td><td class="n">${fmt.n(m.linesChanged)}</td><td class="n">${fmt.one(m.commitShare)}%</td><td class="n">${fmt.one(m.linesShare)}%</td><td class="n"><b>${fmt.one(m.score)}</b></td><td>${status(m)}</td></tr>`).join('')
+          || `<tr><td colspan="7" class="help">No members match “${esc(q)}”.</td></tr>`}</tbody>
+      </table></div>
+    </section>`;
+
+  // place the 60% line using the same track width as the bars
+  const track = $('.tr', content);
+  if (track) {
+    const lim = $('#limit'), bars = $('#bars');
+    lim.style.left = `${track.offsetLeft + track.offsetWidth * 0.6}px`;
+    lim.style.height = `${bars.offsetHeight}px`;
+  }
+  const tip = $('.tip', content), card = tip.parentElement;
+  $$('.fill', content).forEach((f) => {
+    const on = () => { const b = card.getBoundingClientRect(), r = f.getBoundingClientRect(); tip.innerHTML = f.dataset.tip; tip.style.left = `${Math.min(Math.max(r.left - b.left + r.width / 2, 120), b.width - 120)}px`; tip.style.top = `${r.top - b.top}px`; tip.classList.add('on'); };
+    const off = () => tip.classList.remove('on');
+    f.addEventListener('pointerenter', on); f.addEventListener('focus', on); f.addEventListener('pointerleave', off); f.addEventListener('blur', off);
+  });
+  $$('[data-sort]', content).forEach((b) => (b.onclick = () => {
+    const k = b.dataset.sort;
+    sort = { key: k, dir: sort.key === k && sort.dir === 'desc' ? 'asc' : (k === 'author' && sort.key !== k ? 'asc' : 'desc') };
+    render();
+    $(`[data-sort="${k}"]`).focus();
+  }));
+  if ($('#clear')) $('#clear').onclick = () => { $('#search').value = ''; render(); $('#search').focus(); };
+}
+
+$('#search').addEventListener('input', () => result && render());
+addEventListener('resize', () => result && render());
+$('#export').onclick = () => {
+  const r = range.get();
+  const rows = [['Member', 'GitHub login', 'Role', 'Commits', 'Lines changed', 'Commit share %', 'Lines share %', 'Score', 'From', 'To']];
+  result.members.forEach((m) => rows.push([nameOf(m.author), m.author, member(m.author).role, m.commits, m.linesChanged, m.commitShare, m.linesShare, m.score, r.since, r.until]));
+  downloadCsv(`vicollab-contributions_${r.since}_to_${r.until}.csv`, rows);
+  toast('CSV exported', `${result.members.length} members, ${fmt.day(r.since)} – ${fmt.day(r.until)}`);
+};
+load();
+</script>
+</body></html>

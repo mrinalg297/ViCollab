@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Empty and error states · ViCollab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script>try{const t=localStorage.getItem('vicollab.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<main>
+  <p class="crumbs"><a href="dashboard.html">Workspace</a> / States</p>
+  <div class="head"><div><h1>Empty and error states</h1>
+    <p>Every screen uses the same block when there is nothing to show or something went wrong: an icon, a plain-language reason, and a button that fixes it. These are the four main ones. <b>Try it live</b> puts the app into that state.</p></div></div>
+  <div class="grid g2" id="list"></div>
+</main>
+
+<script src="mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+shell('states');
+const P = Mock.range.presets[0];
+const goDash = (q = '') => (location.href = 'dashboard.html' + q);
+const cases = [
+  { id: 'not-linked', title: 'GitHub not linked', where: 'Dashboard and member pages, before GitHub is connected.',
+    state: STATES.notLinked(),
+    live: () => { setState({ connected: false, login: null, syncedRepo: null, lastSynced: null, lastError: null }); goDash(); } },
+  { id: 'no-commits', title: 'No commits in range', where: 'Dashboard or member page when nobody committed in the chosen dates.',
+    state: STATES.noCommits({ since: '2026-10-19', until: '2026-10-25' }, () => goDash(`?since=${P.since}&until=${P.until}`)),
+    live: () => { ensureSynced(); goDash('?since=2026-10-19&until=2026-10-25'); } },
+  { id: 'sync-failed', title: 'Sync failed', where: 'Connect screen and dashboard when GitHub returns an error during sync.',
+    state: STATES.syncFailed('GitHub returned 503 Service Unavailable while listing commits', async (e) => {
+      const s = getState();
+      if (!s.connected) return toast('Connect GitHub first', 'Retry needs a linked account.', 'err');
+      e.currentTarget.disabled = true;
+      try { await mockSync(); toast('Retry worked', `Synced ${s.repo}`); } catch (err) { toast('Sync failed again', err.message, 'err'); }
+      e.currentTarget.disabled = false;
+    }),
+    live: () => { setState({ connected: true, login: Mock.team.viewer, syncedRepo: null, lastSynced: null, lastError: { message: 'GitHub returned 503 Service Unavailable while listing commits', at: new Date().toISOString(), repo: getState().repo } }); goDash(); } },
+  { id: 'bad-range', title: 'Invalid date range', where: 'Dashboard and member page when “From” is after “To”. Checked before calling the API.',
+    state: STATES.badRange(checkRange({ since: '2026-10-18', until: '2026-07-27' }), () => goDash(`?since=${P.since}&until=${P.until}`)),
+    live: () => { ensureSynced(); goDash('?since=2026-10-18&until=2026-07-27'); } },
+];
+function ensureSynced() {
+  const s = getState();
+  if (!s.connected || !s.syncedRepo) setState({ connected: true, login: Mock.team.viewer, repo: 'mrinalg297/vicollab', syncedRepo: 'mrinalg297/vicollab', lastSynced: new Date().toISOString(), lastError: null });
+}
+$('#list').innerHTML = cases.map((c, i) => `<section class="card" aria-labelledby="h-${c.id}">
+  <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+    <div><h2 id="h-${c.id}">${i + 1}. ${esc(c.title)}</h2><p class="sub">${esc(c.where)}</p></div>
+    <button class="btn sm ghost" data-live="${i}">Try it live →</button></div>
+  <div id="s-${c.id}" style="border:1.5px dashed var(--line);border-radius:20px;margin-top:16px"></div></section>`).join('');
+cases.forEach((c, i) => { stateBlock($(`#s-${c.id}`), c.state); $(`[data-live="${i}"]`).onclick = c.live; });
+</script>
+</body></html>

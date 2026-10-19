@@ -1,0 +1,11 @@
+{
+  "members": ["Aarav", "Meera"],
+  "commits": [
+    { "sha": "i001", "author": "Aarav", "additions": 30, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: invite links" },
+    { "sha": "i002", "author": "Meera", "additions": 40, "deletions": 20, "date": "2026-03-02T12:00:00Z", "message": "feat: invite page" },
+    { "sha": "i003", "additions": 10, "deletions": 0, "date": "2026-03-03T10:00:00Z", "message": "no author on this one" },
+    { "sha": "i004", "author": "Aarav", "additions": -5, "deletions": 3, "date": "2026-03-03T11:00:00Z", "message": "negative additions" },
+    { "sha": "i005", "author": "Meera", "additions": 5, "deletions": 5, "date": "next tuesday", "message": "bad date" },
+    { "sha": "i006", "author": "Meera", "additions": "12", "deletions": 0, "date": "2026-03-04T11:00:00Z", "message": "additions sent as text" }
+  ]
+}

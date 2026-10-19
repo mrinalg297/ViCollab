@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ViCollab: say what you built, show the commits</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEF0F7;--ink:#0E1233;--mut:#545A7A;--card:#fff;--line:rgba(14,18,51,.14);--blue:#3040FF;--mint:#2FCB8A;--warn:#FF5A47;--yel:#FFD84D;--c0:rgba(14,18,51,.06);--c1:#C8F0DC;--c2:#82DDB5;--c3:#2FCB8A;--c4:#14966A;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0A0D24;--ink:#ECEEFF;--mut:#9AA0C8;--card:#141838;--line:rgba(236,238,255,.16);--blue:#5A68FF;--c0:rgba(236,238,255,.06);--c1:#14503B;--c2:#1B7A57;--c3:#2FCB8A;--c4:#8CF5C6}}
+:root[data-theme=dark]{--bg:#0A0D24;--ink:#ECEEFF;--mut:#9AA0C8;--card:#141838;--line:rgba(236,238,255,.16);--blue:#5A68FF;--c0:rgba(236,238,255,.06);--c1:#14503B;--c2:#1B7A57;--c3:#2FCB8A;--c4:#8CF5C6}
+*{box-sizing:inherit;margin:0}
+html{scroll-padding-top:calc(70px + env(safe-area-inset-top,0px));scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:400 1.05rem/1.6 'Hanken Grotesk',system-ui,sans-serif;overflow-x:hidden}
+h1,h2,h3,.big,.mq{font-family:'Bricolage Grotesque','Arial Narrow',system-ui,sans-serif}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+@media(pointer:fine){html,a,button{cursor:none}}
+.cd,.cr{display:none;position:fixed;left:0;top:0;pointer-events:none;z-index:999;mix-blend-mode:difference}
+@media(pointer:fine){.cd,.cr{display:block}}
+.cd{width:8px;height:8px;margin:-4px;border-radius:50%;background:#fff}
+.cr{width:38px;height:38px;margin:-19px;border-radius:50%;border:1.5px solid #fff;display:grid;place-items:center;color:#fff;font:600 12px 'Hanken Grotesk';transition:width .3s,height .3s,margin .3s}
+.cr.big{width:88px;height:88px;margin:-44px}
+.bar{position:fixed;top:0;left:0;width:100%;height:3px;background:var(--blue);transform:scaleX(0);transform-origin:0 50%;z-index:100}
+.curtain{position:fixed;inset:0;z-index:200;background:var(--ink);color:var(--bg);display:grid;place-items:center;font:800 clamp(2.5rem,9vw,6rem) 'Bricolage Grotesque',sans-serif;letter-spacing:-.03em;animation:cur 1.5s cubic-bezier(.7,0,.2,1) forwards}
+@keyframes cur{0%,50%{transform:none}99%{transform:translateY(-100%)}100%{transform:translateY(-100%);visibility:hidden}}
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:calc(12px + env(safe-area-inset-top,0px)) clamp(16px,4vw,48px) 12px;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:10px;font:800 1.35rem 'Bricolage Grotesque',sans-serif;text-decoration:none;letter-spacing:-.02em}
+.nav nav{display:flex;gap:28px}.nav nav a{text-decoration:none;font-weight:500}.nav nav a:hover{color:var(--blue)}
+@media(max-width:700px){.nav nav{display:none}}
+.btn{display:inline-block;padding:15px 26px;border:0;border-radius:99px;background:var(--ink);color:var(--bg);font:600 1rem 'Hanken Grotesk',sans-serif;text-decoration:none}
+.btn:hover{background:var(--blue);color:#fff}.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}.btn.ghost:hover{background:var(--ink);color:var(--bg)}.btn.sm{padding:10px 18px}
+.mag{transition:transform .3s cubic-bezier(.2,.8,.2,1),background .25s,color .25s}
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;padding:120px clamp(16px,5vw,64px) 90px;overflow:hidden}
+#heat{position:absolute;inset:0;width:100%;height:100%}
+.hero-in{position:relative}
+h1{font-size:clamp(3rem,10.5vw,10rem);line-height:.92;letter-spacing:-.035em}
+.l1,.l2{display:block;padding:.06em 0 .1em;overflow:hidden}
+h1 i{font-style:normal;display:inline-block;font-variation-settings:'wght' 560,'wdth' 100;transition:font-variation-settings .3s}
+.l2 i{color:transparent;-webkit-text-stroke:2px var(--ink)}
+.w0{display:inline-block;white-space:nowrap}
+body:not(.ready) h1 i{opacity:0}
+.ready h1 i{animation:rise 1s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--n)*30ms)}
+@keyframes rise{from{transform:translateY(115%) rotate(6deg)}}
+.lede{max-width:46ch;margin:26px 0 32px;font-size:1.2rem}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.hint{position:absolute;bottom:22px;left:clamp(16px,5vw,64px);font-size:.9rem;color:var(--mut)}
+.mqw{overflow:hidden;padding:34px 0}
+.mq{margin:0 -3vw;background:var(--yel);color:#0E1233;padding:16px 0;transform:rotate(-1.4deg);border-block:1.5px solid #0E1233;font-weight:700;font-size:clamp(1.6rem,4vw,3rem)}
+.mq-t{display:flex;width:max-content;will-change:transform}
+.mq-t span{white-space:nowrap;padding-right:48px;display:flex;align-items:center;gap:48px}
+.mq-t span:after{content:'';width:.32em;height:.32em;background:#0E1233;transform:rotate(45deg)}
+.mani{height:240vh}
+.mani>div{position:sticky;top:0;min-height:100svh;display:grid;place-items:center;padding:0 clamp(16px,6vw,96px)}
+.mani p{max-width:21em;font:600 clamp(1.7rem,4.2vw,3.7rem)/1.14 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}
+.w{opacity:.14;transition:opacity .4s}.w.on{opacity:1}
+.sec{padding:clamp(72px,11vw,140px) clamp(16px,5vw,64px)}
+h2{font-size:clamp(2.2rem,5.6vw,5rem);line-height:1;letter-spacing:-.028em;max-width:13em}
+.sub{max-width:52ch;margin-top:20px;color:var(--mut)}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-top:36px}
+.tab{padding:10px 20px;border-radius:99px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:600 1rem 'Hanken Grotesk',sans-serif;transition:background .2s,color .2s}
+.tab:hover{border-color:var(--ink)}.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.proof{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+@media(max-width:800px){.proof,.sc,.fac{grid-template-columns:1fr!important}}
+.pn{background:var(--card);border:1.5px solid var(--line);border-radius:30px;padding:clamp(20px,3vw,34px);min-height:340px}
+.pn small{display:block;color:var(--mut);font-size:.92rem}
+.tags{display:flex;gap:8px;margin:14px 0 20px}.tag{padding:3px 12px;border-radius:8px;background:var(--c0);font-weight:600;font-size:.88rem}
+.bub{background:var(--blue);color:#fff;padding:20px 24px;border-radius:24px 24px 24px 4px;font-size:1.4rem;line-height:1.35;font-weight:500;max-width:92%}
+.big{font-weight:800;font-size:4.6rem;line-height:1;margin:10px 0 0}.big span{letter-spacing:-.03em}.big{font-size:4.6rem}
+.bars{display:flex;gap:6px;align-items:flex-end;height:150px;margin:14px 0 8px}
+.bars b{flex:1;background:var(--mint);border-radius:5px 5px 2px 2px;transition:height .7s cubic-bezier(.2,.8,.2,1)}.bars b.z{opacity:.3}
+.ax{display:flex;justify-content:space-between;color:var(--mut);font-size:.85rem}
+.vd{display:inline-block;margin-top:16px;padding:8px 16px;border-radius:99px;font-weight:600;color:#0E1233}
+.vd.ok{background:var(--mint)}.vd.off{background:var(--warn)}.vd.part{background:var(--yel)}
+.stack{margin-top:50px}
+.sc{position:sticky;top:calc(84px + var(--i)*22px);display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;min-height:56vh;margin-bottom:26px;padding:clamp(22px,4vw,54px);border-radius:38px}
+.sc h3{font-size:clamp(2rem,4.2vw,3.6rem);line-height:1;letter-spacing:-.025em;margin-bottom:16px}.sc p{max-width:36ch}
+.s1{background:#3040FF;color:#fff}.s2{background:#FFD84D;color:#0E1233}.s3{background:#2FCB8A;color:#0E1233}.s4{background:#1B2160;color:#fff}
+.chip{border:0;border-radius:10px;padding:10px 15px;margin:0 8px 8px 0;background:#fff;color:#0E1233;font:600 .95rem 'Hanken Grotesk',sans-serif;transition:transform .2s,background .2s,color .2s}
+.chip:hover{transform:translateY(-3px) rotate(-2deg)}.chip.on{background:#0E1233;color:#fff}
+.meter{height:10px;border-radius:9px;background:rgba(255,255,255,.3);overflow:hidden;margin:14px 0 8px}.meter i{display:block;height:100%;width:33.3%;background:#fff;transition:width .5s}
+.msg,.cm,.gr{background:#fff;color:#0E1233;border-radius:18px 18px 18px 4px;padding:12px 16px;margin-bottom:10px;max-width:88%}
+.msg.me{margin-left:auto;background:#0E1233;color:#fff;border-radius:18px 18px 4px 18px}
+.react{border:0;border-radius:99px;padding:6px 13px;margin:4px 6px 0 0;background:rgba(14,18,51,.12);color:#0E1233;font:600 1rem 'Hanken Grotesk',sans-serif}
+.react.pop{animation:pop .35s}@keyframes pop{50%{transform:scale(1.3)}}
+.cm{display:flex;gap:12px;max-width:100%;border-radius:12px;font:500 .92rem ui-monospace,Menlo,monospace}.cm code{color:#3040FF;font-weight:700}
+.gr{max-width:100%;border-radius:14px;background:rgba(255,255,255,.1);color:#fff}
+.fac{display:grid;grid-template-columns:5fr 7fr;gap:clamp(24px,5vw,64px);align-items:center}
+.fac .btn{margin-top:26px}
+.tw{perspective:1200px}
+.dash{background:var(--card);border:1.5px solid var(--line);border-radius:32px;padding:clamp(18px,3vw,30px);transition:transform .2s ease-out}
+.dh{display:flex;justify-content:space-between;align-items:center;font-weight:600;padding-bottom:12px}
+.live{width:10px;height:10px;border-radius:50%;background:var(--mint);animation:pl 1.6s infinite}@keyframes pl{50%{box-shadow:0 0 0 8px transparent;box-shadow:0 0 0 8px rgba(47,203,138,.25)}}
+.row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-top:1.5px solid var(--line)}
+.row small{display:block;color:var(--mut)}.row small.wn{color:var(--warn);font-weight:600}
+.rt{display:flex;align-items:center;gap:16px}.n{font:800 1.6rem 'Bricolage Grotesque',sans-serif;min-width:3ch;text-align:right}.n.fl{animation:fl .8s}@keyframes fl{0%{color:var(--mint);transform:scale(1.25)}}
+.sp{display:flex;gap:3px;align-items:flex-end;height:34px}.sb{display:block;width:5px;background:var(--mint);border-radius:2px}.low .sb{background:var(--warn)}
+.end{background:var(--ink);color:var(--bg);border-radius:48px 48px 0 0;padding:clamp(72px,11vw,140px) clamp(16px,5vw,64px) 40px;margin-top:40px}
+.end h2{font-size:clamp(2.6rem,8vw,7.5rem);max-width:11em}
+.end .btn{background:var(--bg);color:var(--ink);margin-top:40px;font-size:1.15rem;padding:20px 34px}.end .btn:hover{background:var(--blue);color:#fff}
+.fine{margin-top:90px;font-size:.92rem;opacity:.7;max-width:60ch}
+#toasts{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:90;display:grid;gap:10px}
+.toast{background:var(--card);color:var(--ink);border:1.5px solid var(--ink);border-radius:16px;padding:12px 18px;animation:ti .5s cubic-bezier(.2,.8,.2,1)}.toast b,.toast span{display:block}.toast span{color:var(--mut);font-size:.92rem}
+@keyframes ti{from{transform:translateX(120%)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.curtain{display:none}html{scroll-behavior:auto}}
+</style></head>
+<body>
+<div class="bar"></div><div class="cd"></div><div class="cr"><span></span></div>
+<div class="curtain" aria-hidden="true">ViCollab</div>
+<header class="nav"><a class="logo" href="#top"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect width="11" height="11" rx="2" fill="#3040FF"/><rect x="13" width="11" height="11" rx="2" fill="#82DDB5"/><rect y="13" width="11" height="11" rx="2" fill="#C8F0DC"/><rect x="13" y="13" width="11" height="11" rx="2" fill="#2FCB8A"/></svg>ViCollab</a>
+<nav><a href="#proof">Proof</a><a href="#how">How it works</a><a href="#faculty">Faculty</a><a href="contribution-checker.html">Contribution checker</a><a href="app/">Dashboard</a></nav>
+<a class="btn sm mag" href="#start">Start a team</a></header>
+
+<main id="top">
+<section class="hero"><canvas id="heat" aria-hidden="true"></canvas>
+<div class="hero-in"><h1 id="h1" aria-label="Say what you built. Show the commits."><span class="l1">Say what you built.</span><span class="l2">Show the commits.</span></h1>
+<p class="lede">ViCollab gives every student project team one workspace for chat, tasks and updates, and sets each member's real GitHub activity beside what they report. Faculty see who built what, without chasing anyone.</p>
+<div class="cta"><a class="btn mag" href="#start">Post a project idea</a><a class="btn ghost" href="#proof">See how proof works</a><a class="btn ghost" href="app/">Dashboard</a></div></div>
+<p class="hint">Move over the grid. Click it.</p></section>
+
+<div class="mqw"><div class="mq"><div class="mq-t"><span>Team formation</span><span>Live chat</span><span>Task assignment</span><span>GitHub tracking</span><span>Update feed</span><span>Notifications</span><span>Faculty dashboard</span><span>Skill tags</span></div></div></div>
+
+
+<section class="sec" id="proof"><h2>Hear the claim. Check the commits.</h2>
+<p class="sub">Pick a teammate on this sample team. What they told the team is on the left, what GitHub recorded is on the right.</p>
+<div class="tabs"></div>
+<div class="proof"><div class="pn"><small>Posted in team chat by <b id="who"></b></small><div class="tags" id="tags"></div><div class="bub" id="say"></div></div>
+<div class="pn"><small>GitHub activity, last 12 weeks</small><div class="big"><span id="sum"></span> commits</div><div class="bars"></div><div class="ax"><span>Week 1</span><span>Week 12</span></div><div id="vd"></div></div></div></section>
+
+<section class="sec" id="how"><h2>One workspace for the whole project</h2>
+<div class="stack">
+<article class="sc s1" style="--i:0"><div><h3>Find your team</h3><p>Post a project idea, tag the skills it needs, and get matched with people who have them. Each member's specialisation shows on their profile.</p></div>
+<div><button class="chip on" aria-pressed="true">React</button><button class="chip on" aria-pressed="true">Node.js</button><button class="chip" aria-pressed="false">PostgreSQL</button><button class="chip" aria-pressed="false">UI design</button><button class="chip" aria-pressed="false">Testing</button><button class="chip" aria-pressed="false">Docs</button>
+<div class="meter"><i></i></div><div id="cov">Team covers 2 of 6 skills</div></div></article>
+<article class="sc s2" style="--i:1"><div><h3>Work in one room</h3><p>Chat, assign tasks and react to updates in a shared team workspace. Notifications tell you the moment something lands on you.</p></div>
+<div><div class="msg">Can someone take the OAuth callback?</div><div class="msg me">On it. PR tonight.</div><button class="react">👍 <span>3</span></button><button class="react">🔥 <span>1</span></button><button class="react">✅ <span>2</span></button></div></article>
+<article class="sc s3" style="--i:2"><div><h3>Link GitHub once</h3><p>Sign in with GitHub and commits flow into each member's record automatically. No self-reporting needed.</p></div>
+<div><div class="cm"><code>a41f9c2</code>feat: github oauth callback</div><div class="cm"><code>7be03d1</code>fix: socket reconnect on idle</div><div class="cm"><code>e92c4a8</code>test: contribution scoring</div></div></article>
+<article class="sc s4" style="--i:3"><div><h3>Oversee every group</h3><p>Faculty see self-reported updates and GitHub-verified activity side by side, for all groups at once.</p></div>
+<div><div class="gr"><small>Update feed</small>Sprint 3 demo is ready.</div><div class="gr"><small>GitHub</small>41 commits this sprint from 3 contributors.</div></div></article>
+</div></section>
+
+<section class="sec fac" id="faculty"><div><h2>Every group on one screen.</h2><p class="sub">No more weekly check-ins to learn who is stuck. The dashboard shows each group's reported progress beside its commit activity. Students hear about new tasks as live notifications.</p>
+<button class="btn mag" id="assign">Send a sample notification</button></div>
+<div class="tw"><div class="dash"><div class="dh"><span>Software Engineering Lab, all groups</span><span class="live" title="Live"></span></div><div id="rows"></div></div></div></section>
+
+<section class="end" id="start"><h2>Start with an idea. Finish with proof.</h2>
+<a class="btn mag" href="#top">Post a project idea</a>
+<p class="fine">Built by Mrinal Gupta and Vaaman Bansal, Team 20, for the Software Engineering Lab at Vellore Institute of Technology. Team members, groups and commits shown on this page are sample data.</p></section>
+</main>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+const $=(s,c=document)=>c.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)],
+rm=matchMedia('(prefers-reduced-motion:reduce)').matches,fine=matchMedia('(pointer:fine)').matches;
+let mx=-999,my=-999;
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+setTimeout(()=>document.body.classList.add('ready'),rm?0:800);
+
+/* headline letters + proximity weight */
+$$('.l1,.l2').forEach((l,k)=>{let n=0;l.innerHTML=l.textContent.split(' ').map(w=>`<span class="w0">${[...w].map(c=>`<i style="--n:${n++ +k*10}">${c}</i>`).join('')}</span>`).join(' ')});
+const L=$$('#h1 i');let pend=false;
+addEventListener('pointermove',()=>{if(rm||pend||scrollY>innerHeight)return;pend=true;requestAnimationFrame(()=>{pend=false;L.forEach(i=>{const r=i.getBoundingClientRect(),d=Math.hypot(mx-r.x-r.width/2,my-r.y-r.height/2),t=Math.max(0,1-d/240);i.style.fontVariationSettings=`'wght' ${560+240*t},'wdth' ${100-20*t}`})})});
+
+/* custom cursor */
+if(fine){const d=$('.cd'),r=$('.cr'),lb=$('.cr span');let x=0,y=0,rx=0,ry=0;
+addEventListener('pointermove',e=>{x=e.clientX;y=e.clientY;d.style.transform=`translate(${x}px,${y}px)`});
+(function f(){rx+=(x-rx)*.16;ry+=(y-ry)*.16;r.style.transform=`translate(${rx}px,${ry}px)`;requestAnimationFrame(f)})();
+document.addEventListener('pointerover',e=>{const t=e.target.closest('a,button,[data-cursor]');r.classList.toggle('big',!!t)})}
+
+/* hero contribution grid */
+const cv=$('#heat'),g=cv.getContext('2d'),S=24;let W,H,C,R,B,Ht,P=[],rip=[],vis=true;
+const rp=()=>{const s=getComputedStyle(document.documentElement);P=[0,1,2,3,4].map(i=>s.getPropertyValue('--c'+i).trim())};
+function size(){const b=cv.parentNode.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);W=b.width;H=b.height;cv.width=W*d;cv.height=H*d;g.setTransform(d,0,0,d,0,0);C=Math.ceil(W/S);R=Math.ceil(H/S);B=new Uint8Array(C*R);Ht=new Float32Array(C*R);
+for(let i=0;i<B.length;i++){const c=i%C,r=i/C|0,v=Math.sin(c*.3)+Math.cos(r*.45+c*.1)+Math.random()*1.1;B[i]=v>1.7?2:v>.8?1:0}draw(0)}
+function draw(t){g.clearRect(0,0,W,H);const top=cv.getBoundingClientRect().top,now=performance.now();rip=rip.filter(q=>now-q.t<2200);
+for(let i=0;i<B.length;i++){const c=i%C,r=i/C|0,x=c*S+S/2,y=r*S+S/2,d=Math.hypot(mx-x,my-top-y);
+if(d<130)Ht[i]=Math.max(Ht[i],1-d/130);
+for(const q of rip)if(Math.abs(Math.hypot(q.x-x,q.y-y)-(now-q.t)*.6)<30)Ht[i]=1;
+const l=Math.min(4,B[i]+Math.round(Ht[i]*3));Ht[i]*=.93;
+g.fillStyle=P[l];g.fillRect(c*S+2,r*S+2,S-4,S-4)}}
+rp();size();
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{rp();draw(0)});
+new MutationObserver(()=>{rp();draw(0)}).observe(document.documentElement,{attributes:true});
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(size,150)});
+new IntersectionObserver(e=>vis=e[0].isIntersecting).observe(cv);
+addEventListener('pointerdown',e=>{const b=cv.getBoundingClientRect();if(e.clientY>b.top&&e.clientY<b.bottom)rip.push({x:e.clientX,y:e.clientY-b.top,t:performance.now()})});
+(function loop(t){if(vis&&!rm)draw(t);requestAnimationFrame(loop)})(0);
+
+/* scroll-linked: marquee, progress */
+const mq=$('.mq-t');mq.innerHTML+=mq.innerHTML;
+const bar=$('.bar');let off=0,v=0,ly=scrollY;
+(function tick(){const y=scrollY;v=(v+(y-ly)*.1)*.9;ly=y;
+if(!rm){off-=1+v;const hw=mq.scrollWidth/2;if(off<=-hw)off+=hw;if(off>0)off-=hw;mq.style.transform=`translateX(${off}px) skewX(${Math.max(-10,Math.min(10,-v*.5))}deg)`}
+bar.style.transform=`scaleX(${y/((document.documentElement.scrollHeight-innerHeight)||1)})`;
+requestAnimationFrame(tick)})();
+
+/* magnetic buttons + tilt */
+$$('.mag').forEach(b=>{b.addEventListener('pointermove',e=>{if(rm)return;const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.x-r.width/2)*.3}px,${(e.clientY-r.y-r.height/2)*.4}px)`});b.addEventListener('pointerleave',()=>b.style.transform='')});
+const tw=$('.tw'),ds=$('.dash');
+tw.addEventListener('pointermove',e=>{if(rm)return;const r=tw.getBoundingClientRect(),x=(e.clientX-r.x)/r.width-.5,y=(e.clientY-r.y)/r.height-.5;ds.style.transform=`rotateY(${x*10}deg) rotateX(${-y*10}deg)`});
+tw.addEventListener('pointerleave',()=>ds.style.transform='');
+
+/* proof: claim vs commits (sample data) */
+const T=[['Aarav',['Backend','OAuth'],'Auth and GitHub login are done.',[2,5,9,12,8,7,10,6,9,11,7,8],'ok','Matches the log. Commits land every week.'],
+['Meera',['Frontend','UI design'],'The dashboard UI is almost ready.',[1,3,6,8,11,9,7,10,12,9,8,6],'ok','Matches the log. Activity builds toward the demo.'],
+['Kabir',['Real-time','Socket.io'],'Socket.io chat is working.',[6,7,4,2,1,0,0,1,0,0,0,0],'off',"Doesn't match. The last commit was in week 8."],
+['Isha',['Docs','Testing'],'Test reports are drafted.',[0,1,0,2,3,0,4,0,2,1,0,3],'part','Hard to judge from code alone. Log her docs and test work as contributions.']];
+const tb=$('.tabs'),bars=$('.bars');bars.innerHTML='<b></b>'.repeat(12);
+T.forEach((t,i)=>{const b=document.createElement('button');b.className='tab';b.textContent=t[0];b.onclick=()=>show(i);tb.append(b)});
+function show(i){const t=T[i];$$('.tab').forEach((b,k)=>b.setAttribute('aria-selected',k==i));
+$('#who').textContent=t[0];$('#tags').innerHTML=t[1].map(x=>`<span class="tag">${x}</span>`).join('');$('#say').textContent=t[2];
+$$('b',bars).forEach((b,k)=>{b.style.height=Math.max(3,t[3][k]/12*100)+'%';b.classList.toggle('z',!t[3][k])});
+$('#sum').textContent=t[3].reduce((a,b)=>a+b);const d=$('#vd');d.className='vd '+t[4];d.textContent=t[5]}
+show(0);
+
+/* chips + reactions */
+document.addEventListener('click',e=>{const c=e.target.closest('.chip');
+if(c){c.classList.toggle('on');c.setAttribute('aria-pressed',c.classList.contains('on'));const n=$$('.chip.on').length;$('#cov').textContent=`Team covers ${n} of 6 skills`;$('.meter i').style.width=n/6*100+'%'}
+const r=e.target.closest('.react');if(r){const s=$('span',r);s.textContent=+s.textContent+1;r.classList.remove('pop');void r.offsetWidth;r.classList.add('pop')}});
+
+/* faculty dashboard (sample data) */
+const G=[['Group 04','Library finder',212,[3,5,6,5,7,6,8,7]],['Group 11','Lab booking',148,[4,4,5,6,5,6,6,7]],['Group 16','Campus rides',37,[6,5,3,2,1,1,0,0],'Commits flat for three weeks'],['Group 20','ViCollab',189,[2,4,6,7,7,8,9,8]]];
+$('#rows').innerHTML=G.map(g=>`<div class="row${g[4]?' low':''}"><div><b>${g[0]}, ${g[1]}</b><small>Reported: on track</small>${g[4]?`<small class="wn">${g[4]}</small>`:''}</div><div class="rt"><span class="n">${g[2]}</span><span class="sp">${g[3].map(x=>`<span class="sb" style="height:${x*11+6}%"></span>`).join('')}</span></div></div>`).join('');
+setInterval(()=>{if(document.hidden)return;const k=[0,1,3][Math.random()*3|0],n=$$('.n')[k];G[k][2]+=1+(Math.random()*3|0);n.textContent=G[k][2];n.classList.remove('fl');void n.offsetWidth;n.classList.add('fl')},2200);
+const tk=[['Wire up Socket.io notifications','Kabir'],['Write contribution scoring tests','Isha'],['Polish the faculty dashboard','Meera']];let ti=0;
+$('#assign').onclick=()=>{const t=tk[ti++%3],e=document.createElement('div');e.className='toast';e.innerHTML=`<b>New task assigned to ${t[1]}</b><span>${t[0]}</span>`;$('#toasts').append(e);setTimeout(()=>e.remove(),4200)};
+</script>
+</body></html>

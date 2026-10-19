@@ -1,0 +1,107 @@
+
+> vicollab-contribution-scoring@1.0.0 test:postman
+> newman run postman/ViCollab_Contribution_Scoring.postman_collection.json --env-var baseUrl=http://localhost:3000 --reporter-cli-no-banner
+
+ViCollab Contribution Scoring
+
+→ TC-01 Balanced team: 3 members, 2 commits and 100 lines each
+  POST http://localhost:3000/api/contributions/score [200 OK, 701B, 61ms]
+  ✓  status 200
+  ✓  every member scores 33.3
+  ✓  no warnings or errors
+
+→ TC-02 One dominant member (Aarav 6 of 10 commits, 700 of 1000 lines)
+  POST http://localhost:3000/api/contributions/score [200 OK, 753B, 9ms]
+  ✓  status 200
+  ✓  Aarav 60 / 70 / 64
+  ✓  Meera 20, Kabir 16
+  ✓  one dominance warning about Aarav
+
+→ TC-03 Single-member team (Isha only)
+  POST http://localhost:3000/api/contributions/score [200 OK, 497B, 6ms]
+  ✓  status 200
+  ✓  Isha scores 100
+  ✓  no warnings for a one-person team
+
+→ TC-04 Listed member with zero commits (Isha)
+  POST http://localhost:3000/api/contributions/score [200 OK, 794B, 5ms]
+  ✓  status 200
+  ✓  Isha listed with zeros
+  ✓  scores 54 / 23 / 23
+  ✓  zero-commit warning
+
+→ TC-05 Duplicate sha (g001 sent 3 times)
+  POST http://localhost:3000/api/contributions/score [200 OK, 587B, 5ms]
+  ✓  status 200
+  ✓  2 duplicates skipped
+  ✓  each member 1 commit, score 50
+
+→ TC-06 Merge commits ignored ("Mergesort ..." is a normal commit)
+  POST http://localhost:3000/api/contributions/score [200 OK, 686B, 4ms]
+  ✓  status 200
+  ✓  2 merge commits skipped
+  ✓  scores 32 / 32 / 36
+
+→ TC-07 Invalid commits mixed with valid ones (missing author, negative additions, bad date, additions as text)
+  POST http://localhost:3000/api/contributions/score [200 OK, 850B, 4ms]
+  ✓  status 200 (no crash)
+  ✓  4 errors at index 2-5
+  ✓  valid commits scored 46 / 54
+
+→ TC-08 Date filter since 2026-03-01, until 2026-03-15 (until day is inclusive)
+  POST http://localhost:3000/api/contributions/score [200 OK, 703B, 4ms]
+  ✓  status 200
+  ✓  2 commits outside the range
+  ✓  Meera commit on the until day is kept
+  ✓  Kabir has 0 and a warning
+
+→ TC-09 Empty commit list
+  POST http://localhost:3000/api/contributions/score [400 Bad Request, 311B, 7ms]
+  ✓  status 400
+  ✓  clear message
+
+→ TC-10 commits field missing from the body
+  POST http://localhost:3000/api/contributions/score [400 Bad Request, 311B, 7ms]
+  ✓  status 400
+  ✓  clear message
+
+→ TC-11 Malformed request body (truncated JSON)
+  POST http://localhost:3000/api/contributions/score [400 Bad Request, 286B, 5ms]
+  ✓  status 400
+  ✓  JSON error, not an HTML page
+
+→ TC-12 Score exactly 60% (limit is "above 60")
+  POST http://localhost:3000/api/contributions/score [200 OK, 587B, 3ms]
+  ✓  status 200
+  ✓  Aarav exactly 60.0
+  ✓  no warning at exactly 60
+
+→ TC-13 Only empty commits (0 lines changed in total)
+  POST http://localhost:3000/api/contributions/score [200 OK, 581B, 3ms]
+  ✓  status 200
+  ✓  linesShare 0, score 30, no NaN
+
+→ TC-14 Health check
+  GET http://localhost:3000/api/health [200 OK, 317B, 6ms]
+  ✓  status 200
+  ✓  status ok
+
+┌─────────────────────────┬──────────────────┬─────────────────┐
+│                         │         executed │          failed │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              iterations │                1 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│                requests │               14 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│            test-scripts │               14 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│      prerequest-scripts │                0 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              assertions │               40 │               0 │
+├─────────────────────────┴──────────────────┴─────────────────┤
+│ total run duration: 443ms                                    │
+├──────────────────────────────────────────────────────────────┤
+│ total data received: 4.63kB (approx)                         │
+├──────────────────────────────────────────────────────────────┤
+│ average response time: 9ms [min: 3ms, max: 61ms, s.d.: 14ms] │
+└──────────────────────────────────────────────────────────────┘

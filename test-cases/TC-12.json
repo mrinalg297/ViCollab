@@ -1,0 +1,10 @@
+{
+  "members": ["Aarav", "Meera"],
+  "commits": [
+    { "sha": "l001", "author": "Aarav", "additions": 15, "deletions": 5, "date": "2026-03-02T10:00:00Z", "message": "feat: task board" },
+    { "sha": "l002", "author": "Aarav", "additions": 15, "deletions": 5, "date": "2026-03-03T10:00:00Z", "message": "feat: task filters" },
+    { "sha": "l003", "author": "Aarav", "additions": 10, "deletions": 10, "date": "2026-03-04T10:00:00Z", "message": "fix: task sort" },
+    { "sha": "l004", "author": "Meera", "additions": 15, "deletions": 5, "date": "2026-03-03T12:00:00Z", "message": "feat: task card" },
+    { "sha": "l005", "author": "Meera", "additions": 10, "deletions": 10, "date": "2026-03-04T12:00:00Z", "message": "style: task card" }
+  ]
+}

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Connect GitHub · ViCollab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script>try{const t=localStorage.getItem('vicollab.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<main>
+  <p class="crumbs"><a href="dashboard.html">Workspace</a> / GitHub</p>
+  <div class="head"><div><h1>Connect GitHub</h1>
+    <p>Link the team's repository once. ViCollab reads the commit history and scores everyone's share of the work. This demo uses mock OAuth and mock commits.</p></div></div>
+
+  <div class="grid g2">
+    <section class="card" aria-labelledby="acc-h">
+      <h2 id="acc-h">1. GitHub account</h2>
+      <p class="sub">Read-only access to repositories and your public profile.</p>
+      <dl class="kv">
+        <dt>Status</dt><dd><span id="acc-badge" class="badge"></span></dd>
+        <dt>Account</dt><dd id="acc-login">-</dd>
+        <dt>Permissions</dt><dd>read:user, repo (read-only)</dd>
+      </dl>
+      <div class="toolbar" style="margin-top:20px">
+        <button class="btn" id="connect"><span aria-hidden="true">⌥</span>Connect GitHub</button>
+        <button class="btn ghost" id="disconnect" hidden>Disconnect</button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="repo-h">
+      <h2 id="repo-h">2. Repository and sync</h2>
+      <p class="sub">Pick the repo your team commits to, then sync to pull the latest commits.</p>
+      <div class="field" style="margin-top:16px">
+        <label for="repo">Repository</label>
+        <select id="repo" aria-describedby="repo-help"></select>
+        <span class="help" id="repo-help"></span>
+      </div>
+      <dl class="kv">
+        <dt>Last synced</dt><dd id="synced">Never</dd>
+        <dt>Commits found</dt><dd id="found">-</dd>
+      </dl>
+      <div class="toolbar" style="margin-top:20px">
+        <button class="btn" id="sync"><span class="label">Sync now</span></button>
+        <a class="btn ghost" href="dashboard.html" id="to-dash">Open dashboard →</a>
+      </div>
+      <div id="sync-msg" style="margin-top:16px"></div>
+    </section>
+
+    <section class="card span2" aria-labelledby="steps-h">
+      <h2 id="steps-h">Setup checklist</h2>
+      <div class="steps" id="steps"></div>
+    </section>
+
+    <details class="card span2">
+      <summary style="cursor:pointer;font-weight:600">Demo controls (for testing the error states)</summary>
+      <div class="toolbar" style="margin-top:14px;align-items:center">
+        <label style="display:flex;gap:10px;align-items:center;font-weight:500"><input type="checkbox" id="fail" style="width:22px;min-height:22px"> Make the next sync fail</label>
+        <button class="btn ghost sm" id="reset">Reset demo (unlink everything)</button>
+      </div>
+    </details>
+  </div>
+  <p class="foot">ViCollab never writes to your repositories. Disconnecting removes the token straight away.</p>
+</main>
+
+<dialog id="oauth" aria-labelledby="oauth-h">
+  <form method="dialog" class="dlg">
+    <div class="gh" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></div>
+    <h2 id="oauth-h">Authorize ViCollab</h2>
+    <p>ViCollab (Team 20) wants to access your GitHub account <b>@mrinalg297</b>:</p>
+    <ul><li>Read your public profile</li><li>Read commit history of repositories you choose</li></ul>
+    <p class="help">Mock OAuth screen: nothing is sent to GitHub.</p>
+    <div class="acts">
+      <button class="btn ghost" value="cancel">Cancel</button>
+      <button class="btn" value="ok" id="authorize">Authorize</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="mock-data.js"></script>
+<script src="app.js"></script>
+<script>
+shell('connect');
+const repoSel = $('#repo');
+repoSel.innerHTML = Mock.repos.map((r) => `<option value="${r.fullName}">${r.fullName}</option>`).join('');
+let busy = false;
+
+function render() {
+  const s = getState();
+  const badge = $('#acc-badge');
+  badge.className = 'badge ' + (s.connected ? 'ok' : 'off');
+  badge.innerHTML = `<span>${s.connected ? 'Connected' : 'Not connected'}</span>`;
+  $('#acc-login').innerHTML = s.connected ? `@${esc(s.login)}` : '-';
+  $('#connect').hidden = s.connected;
+  $('#disconnect').hidden = !s.connected;
+
+  repoSel.value = s.repo;
+  repoSel.disabled = !s.connected || busy;
+  const repo = repoData(s.repo);
+  $('#repo-help').textContent = s.connected ? repo.description : 'Connect GitHub first to choose a repository.';
+  const synced = s.syncedRepo === s.repo && s.lastSynced;
+  $('#synced').innerHTML = synced ? `${fmt.ago(s.lastSynced)} <span class="help">(${fmt.time(s.lastSynced)})</span>` : (s.syncedRepo ? 'Not synced since changing repo' : 'Never');
+  $('#found').textContent = synced ? `${fmt.n(repo.commits.length)} commits` : '-';
+  $('#sync').disabled = !s.connected || busy;
+  $('#to-dash').setAttribute('aria-disabled', String(!s.syncedRepo));
+  $('#fail').checked = s.failNext;
+
+  // sync result area
+  const msg = $('#sync-msg');
+  if (s.lastError && s.connected) {
+    msg.innerHTML = `<div class="banner err" role="alert"><span class="bi" aria-hidden="true">⚠</span><div><b>Sync failed ${fmt.ago(s.lastError.at)}</b>${esc(s.lastError.message)}. ${s.syncedRepo ? 'The dashboard still shows the last good sync.' : ''}</div><button class="btn sm" id="retry">Retry</button></div>`;
+    $('#retry').onclick = doSync;
+  } else if (synced) {
+    msg.innerHTML = `<div class="banner ok" role="status"><span class="bi" aria-hidden="true">✓</span><div><b>Up to date</b>${repo.commits.length ? 'Commits are ready on the dashboard.' : 'This repository has no commits yet.'}</div></div>`;
+  } else msg.innerHTML = '';
+
+  const steps = [[s.connected, 'Connect your GitHub account', 'Mock OAuth, read-only'], [s.connected, `Choose the team repository`, s.connected ? s.repo : 'Available after connecting'],
+    [!!synced, 'Sync commits', synced ? `Last synced ${fmt.ago(s.lastSynced)}` : 'Pulls commits for scoring'], [!!synced, 'Review the contribution dashboard', 'Scores, warnings and CSV export']];
+  $('#steps').innerHTML = steps.map(([done, t, d]) => `<div class="step${done ? ' done' : ''}"><div><b>${esc(t)}</b><div class="help">${esc(d)}</div></div><span class="sr">${done ? '(done)' : '(to do)'}</span></div>`).join('');
+}
+
+$('#connect').onclick = () => $('#oauth').showModal();
+$('#oauth').addEventListener('close', async () => {
+  if ($('#oauth').returnValue !== 'ok') return toast('GitHub not connected', 'You cancelled the authorization.', 'err');
+  const b = $('#connect');
+  b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span>Connecting…';
+  await mockConnect();
+  b.disabled = false; b.innerHTML = '<span aria-hidden="true">⌥</span>Connect GitHub';
+  toast('GitHub connected', `Signed in as @${getState().login}. Now sync the repository.`);
+  render();
+  $('#sync').focus();
+});
+$('#disconnect').onclick = () => { setState({ connected: false, login: null, syncedRepo: null, lastSynced: null, lastError: null }); toast('GitHub disconnected', 'The token was removed.'); render(); $('#connect').focus(); };
+repoSel.onchange = () => { setState({ repo: repoSel.value, lastError: null }); render(); };
+$('#fail').onchange = (e) => setState({ failNext: e.target.checked });
+$('#reset').onclick = () => { setState({ ...DEFAULT_STATE }); render(); toast('Demo reset', 'GitHub is unlinked again.'); };
+
+async function doSync() {
+  if (busy) return;
+  busy = true;
+  const b = $('#sync');
+  b.innerHTML = '<span class="spin" aria-hidden="true"></span><span class="label">Syncing…</span>';
+  b.setAttribute('aria-busy', 'true');
+  render();
+  try {
+    await mockSync();
+    const n = repoData(getState().repo).commits.length;
+    toast('Sync complete', `${fmt.n(n)} commits from ${getState().repo}`);
+  } catch (err) {
+    toast('Sync failed', err.message, 'err');
+  } finally {
+    busy = false;
+    b.innerHTML = '<span class="label">Sync now</span>';
+    b.removeAttribute('aria-busy');
+    render();
+  }
+}
+$('#sync').onclick = doSync;
+setInterval(render, 30000); // keep "last synced 3 min ago" fresh
+render();
+</script>
+</body></html>

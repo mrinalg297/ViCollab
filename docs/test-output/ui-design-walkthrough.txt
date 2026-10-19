@@ -1,0 +1,67 @@
+dashboard, not linked: GitHub is not linked yet
+toast after connect: ✓ GitHub connected Signed in as @mrinalg297. Now sync the repository. ×
+badge: Connected · not synced
+sync button while syncing: Syncing… | disabled = true
+after sync: ✓ Up to date Commits are ready on the dashboard. | last synced: just now (19 Oct, 16:49) | found: 225 commits
+stats: Members 4 4 active in range Commits scored 221 27 Jul 2026 – 18 Oct 2026 Lines changed 24,706 additions + deletions Not scored 4 3 merge, 1 duplicate
+table rows: [
+  'AM Aarav Mehta @aarav-m · Backend lead 94 10,111 42.5% 40.9% 41.9 OK',
+  'MI Meera Iyer @meera-iyer · Frontend 90 8,677 40.7% 35.1% 38.5 OK',
+  'KS Kabir Singh @kabir-s · Real-time 21 5,093 9.5% 20.6% 13.9 OK',
+  'IR Isha Rao @isha-rao · QA and docs 16 825 7.2% 3.3% 5.7 OK'
+]
+warnings: 
+sprint 1 warning: ⚠ One member dominates this range Kabir Singh has 62.2% of the score (above 60%), work may be unevenly split. Check that work is being shared. View Kabir
+last 4 weeks info: ⓘ No commits in this range Kabir Singh made no valid commits between 21 Sept 2026 and 18 Oct 2026.
+search "me": Showing 2 of 4 members [ 'Aarav Mehta', '41.9', 'Meera Iyer', '38.5' ]
+search "zzz": Showing 0 of 4 members | No members match “zzz”.
+sorted by commits: [
+  'Aarav Mehta',
+  '41.9',
+  'Meera Iyer',
+  '38.5',
+  'Kabir Singh',
+  '13.9',
+  'Isha Rao',
+  '5.7'
+] Commits descending
+sorted again: [
+  'Isha Rao',
+  '5.7',
+  'Kabir Singh',
+  '13.9',
+  'Meera Iyer',
+  '38.5',
+  'Aarav Mehta',
+  '41.9'
+] ascending
+csv file: vicollab-contributions_2026-07-27_to_2026-10-18.csv
+Member,GitHub login,Role,Commits,Lines changed,Commit share %,Lines share %,Score,From,To
+Aarav Mehta,aarav-m,Backend lead,94,10111,42.5,40.9,41.9,2026-07-27,2026-10-18
+Meera Iyer,meera-iyer,Frontend,90,8677,40.7,35.1,38.5,2026-07-27,2026-10-18
+Kabir Singh,kabir-s,Real-time,21,5093,9.5,20.6,13.9,2026-07-27,2026-10-18
+Isha Rao,isha-rao,QA and docs,16,825,7.2,3.3,5.7,2026-07-27,2026-10-18
+bar tooltip on focus: Aarav Mehta 94 commits · 10,111 lines Commit share 42.5% · Lines share 40.9%
+kabir head: KS Kabir Singh @kabir-s · Real-time · last active 16 Sept 2026 Inactive 4 weeks Socket.ioRedis Switch member Aarav Mehta Meera Iyer Kabir Singh Isha Rao
+kabir stats: Score in range 13.9 of 4 members Commits 21 9.5% of the team's Lines added +4,364 in scored commits Lines deleted −729 20.6% of team lines changed
+week tooltip: Week 1 · 27 Jul 6 commits, 1,521 lines
+aarav commits shown: 8 | button: Show all 96 commits
+after show all: 96 | focused: LI
+kabir last 4 weeks: 📭 Kabir has no commits in this range No scored commits between 21 Sept 2026 and 18 Oct 2026. Last commit was on 16 Sept 2026. Show all 12 weeks
+invalid range: 📅 That date range doesn't work The start date (18 Oct 2026) is after the end date (27 Jul 2026). Change the dates above, or reset to the full project. Reset to all 12 weeks | aria-invalid: true
+after reset: 2026-07-27 2026-10-18
+no commits: No commits in this date range
+sync failed toast: ⚠ Sync failed GitHub returned 503 Service Unavailable while listing commits × | panel: ⚠ Sync failed just now GitHub returned 503 Service Unavailable while listing commits. The dashboard still shows the last good sync. Retry | badge: Last sync failed
+dashboard after failed resync: ⚠ The latest sync failed Showing data from the last good sync (19 Oct, 16:49). GitHub returned 503 Service Unavailable while listing commits. Retry sync
+retry: ✓ Sync complete Commits from mrinalg297/vicollab are ready × | banner now: 
+empty repo: This repository has no commits
+first tab stop: Skip to content
+after Enter: main
+tab order inside main: Workspace → ⤓Export CSV → since → since → since → until → until → until → All 12 weeks → Last 4 weeks → Sprint 1 (weeks 1–2) → search → Aarav Mehta → Aarav Mehta: score 41.9. 94 co
+phone overflow: false
+drawer open, aria-expanded = true | focus on: ⌥Connect GitHub
+after Esc, aria-expanded = false
+phone member overflow: false
+phone connect overflow: false
+theme after toggle: dark
+problems: []

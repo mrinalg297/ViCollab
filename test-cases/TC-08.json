@@ -1,0 +1,11 @@
+{
+  "members": ["Aarav", "Meera", "Kabir"],
+  "since": "2026-03-01",
+  "until": "2026-03-15",
+  "commits": [
+    { "sha": "j001", "author": "Aarav", "additions": 200, "deletions": 0, "date": "2026-02-25T10:00:00Z", "message": "chore: project skeleton (before since)" },
+    { "sha": "j002", "author": "Aarav", "additions": 40, "deletions": 10, "date": "2026-03-02T10:00:00Z", "message": "feat: sprint 2 api" },
+    { "sha": "j003", "author": "Meera", "additions": 30, "deletions": 20, "date": "2026-03-15T18:30:00Z", "message": "feat: sprint 2 ui (evening of the until day)" },
+    { "sha": "j004", "author": "Kabir", "additions": 60, "deletions": 0, "date": "2026-03-20T10:00:00Z", "message": "feat: sprint 3 chat (after until)" }
+  ]
+}

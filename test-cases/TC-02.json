@@ -1,0 +1,15 @@
+{
+  "members": ["Aarav", "Meera", "Kabir"],
+  "commits": [
+    { "sha": "d001", "author": "Aarav", "additions": 100, "deletions": 20, "date": "2026-03-01T10:00:00Z", "message": "feat: auth service" },
+    { "sha": "d002", "author": "Aarav", "additions": 90, "deletions": 30, "date": "2026-03-02T10:00:00Z", "message": "feat: team api" },
+    { "sha": "d003", "author": "Aarav", "additions": 100, "deletions": 20, "date": "2026-03-03T10:00:00Z", "message": "feat: task api" },
+    { "sha": "d004", "author": "Aarav", "additions": 80, "deletions": 30, "date": "2026-03-04T10:00:00Z", "message": "feat: notifications" },
+    { "sha": "d005", "author": "Aarav", "additions": 90, "deletions": 20, "date": "2026-03-05T10:00:00Z", "message": "feat: github sync job" },
+    { "sha": "d006", "author": "Aarav", "additions": 100, "deletions": 20, "date": "2026-03-06T10:00:00Z", "message": "refactor: services folder" },
+    { "sha": "d007", "author": "Meera", "additions": 80, "deletions": 20, "date": "2026-03-03T12:00:00Z", "message": "feat: login page" },
+    { "sha": "d008", "author": "Meera", "additions": 70, "deletions": 30, "date": "2026-03-05T12:00:00Z", "message": "feat: team page" },
+    { "sha": "d009", "author": "Kabir", "additions": 40, "deletions": 10, "date": "2026-03-04T15:00:00Z", "message": "chore: eslint config" },
+    { "sha": "d010", "author": "Kabir", "additions": 30, "deletions": 20, "date": "2026-03-06T15:00:00Z", "message": "docs: readme setup" }
+  ]
+}

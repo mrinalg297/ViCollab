@@ -1,0 +1,12 @@
+light connect.html -> violations: 0 
+light dashboard.html -> violations: 0 
+light dashboard.html?since=2026-07-27&until=2026-08-09 -> violations: 0 
+light dashboard.html?since=2026-10-18&until=2026-07-27 -> violations: 0 
+light member.html?m=kabir-s&since=2026-07-27&until=2026-10-18 -> violations: 0 
+light states.html -> violations: 0 
+dark connect.html -> violations: 0 
+dark dashboard.html -> violations: 0 
+dark dashboard.html?since=2026-07-27&until=2026-08-09 -> violations: 0 
+dark dashboard.html?since=2026-10-18&until=2026-07-27 -> violations: 0 
+dark member.html?m=kabir-s&since=2026-07-27&until=2026-10-18 -> violations: 0 
+dark states.html -> violations: 0 
