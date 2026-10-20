@@ -93,7 +93,8 @@ const item = cases.map((c) => {
   };
   if (c.file) {
     request.header.push({ key: 'Content-Type', value: 'application/json' });
-    request.body = { mode: 'raw', raw: fs.readFileSync(path.join(dir, c.file), 'utf8'), options: { raw: { language: 'json' } } };
+    // LF on every OS (a Windows checkout has CRLF), so the collection doesn't change per machine
+    request.body = { mode: 'raw', raw: fs.readFileSync(path.join(dir, c.file), 'utf8').replace(/\r\n/g, '\n'), options: { raw: { language: 'json' } } };
   }
   return {
     name: `${c.id} ${c.scenario}`,
@@ -102,10 +103,59 @@ const item = cases.map((c) => {
   };
 });
 
+// AI endpoints. Bad input is rejected before the model is called, so those checks are exact.
+// The others pass with 200 (Ollama running) or 503 { error: 'AI unavailable' } (Ollama off).
+const aiOk = (bodyChecks) => [
+  "pm.test('200, or 503 when Ollama is not running', () => pm.expect(pm.response.code).to.be.oneOf([200, 503]));",
+  "if (pm.response.code === 503) pm.test('503 body is AI unavailable', () => pm.expect(pm.response.json()).to.eql({ error: 'AI unavailable' }));",
+  ...bodyChecks.map((c) => `if (pm.response.code === 200) ${c}`),
+];
+const aiStatus = (code, pattern) => [
+  `pm.test('status ${code}', () => pm.response.to.have.status(${code}));`,
+  `pm.test('clear error message', () => pm.expect(pm.response.json().error).to.match(${pattern}));`,
+];
+const sprint1 = { since: '2026-07-27', until: '2026-08-09' };
+const aiCases = [
+  ['AI-01 Grounded chat answers a question from the scoring tool', 'chat', { message: 'Who did the most work in Sprint 1?' },
+    aiOk(["pm.test('reply text and the tools it used', () => { pm.expect(pm.response.json().reply).to.be.a('string').and.not.empty; pm.expect(pm.response.json().sources).to.be.an('array'); });"])],
+  ['AI-02 Chat without a message is rejected', 'chat', { history: [] }, aiStatus(400, '/message/')],
+  ['AI-03 Classify commit messages', 'classify', { commits: [
+    { sha: 'pm-a1', message: 'feat: github oauth callback' }, { sha: 'pm-a2', message: 'fix: token refresh race' },
+    { sha: 'pm-a3', message: 'test: scoring unit tests' }, { sha: 'pm-a4', message: 'docs: setup guide' },
+    { sha: 'pm-a5', message: 'chore: bump express' }] },
+  aiOk(["pm.test('one label per commit from the fixed list', () => { const r = pm.response.json().results; pm.expect(r).to.have.length(5); r.forEach(x => { pm.expect(['feat','fix','test','docs','chore','refactor']).to.include(x.type); pm.expect(x.trivial).to.be.a('boolean'); }); });"])],
+  ['AI-04 Classify with an empty list is rejected', 'classify', { commits: [] }, aiStatus(400, '/commits/')],
+  ['AI-05 Member summary for Kabir in Sprint 1', 'summary/kabir-s', sprint1,
+    aiOk(["pm.test('summary and role flag', () => { pm.expect(pm.response.json().summary).to.be.a('string').and.not.empty; pm.expect(pm.response.json().roleMismatch).to.be.a('boolean'); pm.expect(pm.response.json().stats.score).to.equal(62.2); });"])],
+  ['AI-06 Summary for an unknown member is 404', 'summary/zoe', {}, aiStatus(404, '/No team member/')],
+  ['AI-07 Explain the Sprint 1 dominance warning', 'explain-warning', sprint1,
+    aiOk(["pm.test('explains Kabir, with caveats', () => { pm.expect(pm.response.json().member).to.equal('kabir-s'); pm.expect(pm.response.json().explanation).to.be.a('string').and.not.empty; pm.expect(pm.response.json().caveats).to.be.an('array'); });"])],
+  ['AI-08 Explain when there is no warning (all 12 weeks) is rejected', 'explain-warning', {}, aiStatus(400, '/no dominance warning/')],
+  ['AI-09 Streamed chat sends events, ending with a checked answer', 'chat', { message: 'How many commits did Isha make in the last 4 weeks?', stream: true },
+    aiOk(["pm.test('one JSON event per line, the last one done', () => { const ev = pm.response.text().trim().split('\\n').map(l => JSON.parse(l)); pm.expect(ev.some(e => e.type === 'delta')).to.equal(true); const last = ev[ev.length - 1]; pm.expect(last.type).to.equal('done'); pm.expect(last.grounded).to.be.a('boolean'); });"])],
+  ['AI-10 Regenerate a saved summary', 'summary/kabir-s', { ...sprint1, regenerate: true },
+    aiOk(["pm.test('freshly written, with a time', () => { pm.expect(pm.response.json().cached).to.equal(false); pm.expect(Date.parse(pm.response.json().generatedAt)).to.be.a('number').and.not.NaN; });"])],
+  ['AI-11 Regenerate must be true or false', 'summary/kabir-s', { ...sprint1, regenerate: 'yes' }, aiStatus(400, '/regenerate/')],
+];
+item.push({
+  name: 'AI features (local Qwen3 via Ollama)',
+  description: 'Needs the server; the AI requests also pass with 503 when Ollama is not running.',
+  item: aiCases.map(([name, route, body, exec]) => ({
+    name,
+    event: [{ listen: 'test', script: { type: 'text/javascript', exec } }],
+    request: {
+      method: 'POST',
+      header: [{ key: 'Content-Type', value: 'application/json' }],
+      url: { raw: `{{baseUrl}}/api/ai/${route}`, host: ['{{baseUrl}}'], path: ['api', 'ai', ...route.split('/')] },
+      body: { mode: 'raw', raw: JSON.stringify(body, null, 2), options: { raw: { language: 'json' } } },
+    },
+  })),
+});
+
 const collection = {
   info: {
     name: 'ViCollab Contribution Scoring',
-    description: 'Test cases TC-01 to TC-14 for POST /api/contributions/score and GET /api/health. Start the server with npm start first.',
+    description: 'Test cases TC-01 to TC-14 for POST /api/contributions/score and GET /api/health, plus AI-01 to AI-08 for /api/ai/*. Start the server with npm start first.',
     schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
   },
   item,
@@ -114,4 +164,5 @@ const collection = {
 
 const out = path.join(__dirname, '..', 'postman', 'ViCollab_Contribution_Scoring.postman_collection.json');
 fs.writeFileSync(out, JSON.stringify(collection, null, 2) + '\n');
-console.log(`Wrote ${item.length} requests to ${path.relative(process.cwd(), out)}`);
+const count = item.reduce((n, i) => n + (i.item ? i.item.length : 1), 0);
+console.log(`Wrote ${count} requests to ${path.relative(process.cwd(), out)}`);

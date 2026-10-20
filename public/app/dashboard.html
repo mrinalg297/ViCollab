@@ -30,6 +30,22 @@
 
   <div id="warnings"></div>
   <div id="content" aria-live="polite"></div>
+
+  <section class="card ai-chat" id="ai-chat" aria-labelledby="chat-h" hidden>
+    <h2 id="chat-h">Ask about contributions<span class="ai-tag">AI · local</span></h2>
+    <p class="sub">The AI looks numbers up with the scoring API and every number in a reply is checked against those results. It never changes a score.</p>
+    <div class="chips chat-suggest" role="group" aria-label="Example questions">
+      <button type="button" class="chip" data-q="Who did the most work in Sprint 1?">Who did the most in Sprint 1?</button>
+      <button type="button" class="chip" data-q="How has Isha contributed in the last 4 weeks?">Isha, last 4 weeks</button>
+      <button type="button" class="chip" data-q="Is anyone above the 60% limit in this range?">Anyone above 60%?</button>
+    </div>
+    <ol class="chat-log" id="chat-log" aria-live="polite" aria-label="Conversation"></ol>
+    <form class="chat-form" id="chat-form">
+      <label for="chat-q" class="sr">Your question</label>
+      <input id="chat-q" type="text" maxlength="1000" placeholder="e.g. How many commits did Kabir make in week 2?" autocomplete="off" required>
+      <button class="btn" type="submit" id="chat-send">Ask</button>
+    </form>
+  </section>
 </main>
 
 <script src="mock-data.js"></script>
@@ -63,8 +79,10 @@ async function load() {
   $('#subtitle').innerHTML = `${esc(Mock.team.name)}${s.syncedRepo ? ` · <code>${esc(s.syncedRepo)}</code> · synced ${fmt.ago(s.lastSynced)}` : ''}`;
   $('#sync-banner').innerHTML = '';
 
+  $('#ai-chat').hidden = true;
+
   // 1. GitHub not linked / not synced / sync failed
-  if (!s.connected) return showOnly(STATES.notLinked(), false);
+  if (!s.connected)return showOnly(STATES.notLinked(), false);
   if (!s.syncedRepo && s.lastError) return showOnly({ ...STATES.syncFailed(s.lastError.message, (e) => doSync(e.currentTarget)) }, false);
   if (!s.syncedRepo) return showOnly(STATES.notSynced((e) => doSync(e.currentTarget)), false);
   if (s.lastError) {
@@ -73,6 +91,7 @@ async function load() {
   }
 
   const commits = syncedCommits();
+  $('#ai-chat').hidden = !commits.length;
   if (!commits.length) return showOnly(STATES.emptyRepo(s.syncedRepo), false);
 
   // 2. bad range is caught before calling the API
@@ -106,7 +125,7 @@ function render() {
   const zero = d.members.filter((m) => m.commits === 0);
   $('#warnings').innerHTML = dom.map((w) => {
     const who = d.members.find((m) => w.startsWith(m.author));
-    return `<div class="banner warn" role="alert"><span class="bi" aria-hidden="true">⚠</span><div><b>One member dominates this range</b>${esc(friendly(w))}. Check that work is being shared.</div>${who ? `<a class="btn sm ghost" href="member.html?m=${who.author}&${rangeQuery()}">View ${esc(nameOf(who.author).split(' ')[0])}</a>` : ''}</div>`;
+    return `<div class="banner warn" role="alert"><span class="bi" aria-hidden="true">⚠</span><div><b>One member dominates this range</b>${esc(friendly(w))}. Check that work is being shared.<div class="ai-why" id="ai-why" role="status"></div></div>${who ?`<a class="btn sm ghost" href="member.html?m=${who.author}&${rangeQuery()}">View ${esc(nameOf(who.author).split(' ')[0])}</a>` : ''}</div>`;
   }).join('') + (zero.length ? `<div class="banner info" role="status"><span class="bi" aria-hidden="true">ⓘ</span><div><b>No commits in this range</b>${zero.map((m) => esc(nameOf(m.author))).join(', ')} made no valid commits between ${fmt.day(range.get().since)} and ${fmt.day(range.get().until)}.</div></div>` : '');
 
   const sk = d.skipped, skippedTotal = sk.duplicates + sk.merges;
@@ -178,6 +197,28 @@ function render() {
     $(`[data-sort="${k}"]`).focus();
   }));
   if ($('#clear')) $('#clear').onclick = () => { $('#search').value = ''; render(); $('#search').focus(); };
+  if (dom.length) explainWarning();
+}
+
+// AI note inside the dominance banner. aiApi remembers the answer per range, so the
+// re-renders on resize and search don't ask again; the banner is looked up again when it arrives.
+async function explainWarning(refresh = false) {
+  const r = range.get(), body = { since: r.since, until: r.until, repo: getState().syncedRepo };
+  const key = JSON.stringify(body);
+  const el = $('#ai-why');
+  el.dataset.key = key;
+  el.innerHTML = aiLoading(refresh ? 'Asking the AI again…' : 'Asking the AI why…');
+  const res = await aiApi('explain-warning', body, { refresh });
+  const now = $('#ai-why');
+  if (!now || now.dataset.key !== key) return; // range changed meanwhile
+  // a failed Regenerate keeps the saved explanation (failures are never saved on the server)
+  if (!res.ok && refresh) { toast('Couldn\'t write a new explanation', aiFailText(res).title, 'err'); return explainWarning(); }
+  if (!res.ok) return aiFail(now, res);
+  now.innerHTML = `<p><b style="display:inline">Why:</b> ${aiText(res.data.explanation)}</p>
+    ${res.data.caveats.length ? `<p style="margin-top:6px"><b style="display:inline">Where the score may mislead:</b></p><ul>${res.data.caveats.map((c) => `<li>${aiText(c)}</li>`).join('')}</ul>` : ''}
+    ${aiMeta(res.data, 'AI explanation, may be wrong. It doesn\'t change the score.', 'Regenerate explanation')}`;
+  $('[data-regen]', now).onclick = () => explainWarning(true);
+  if (refresh) $('[data-regen]', now).focus();
 }
 
 $('#search').addEventListener('input', () => result && render());
@@ -189,6 +230,67 @@ $('#export').onclick = () => {
   downloadCsv(`vicollab-contributions_${r.since}_to_${r.until}.csv`, rows);
   toast('CSV exported', `${result.members.length} members, ${fmt.day(r.since)} – ${fmt.day(r.until)}`);
 };
+
+/* ---------- AI chat: answers are built from score_contributions tool results ---------- */
+const chatLog = $('#chat-log'), chatQ = $('#chat-q'), chatSend = $('#chat-send');
+const chatHistory = []; // checked turns only, sent back so follow-up questions work
+const describeSource = (s) => {
+  if (s.tool === 'get_project_info') return 'team and weeks';
+  const a = s.args || {};
+  const when = a.period || `${a.since ? fmt.short(a.since) : 'start'} – ${a.until ? fmt.short(a.until) : 'end'}`;
+  return `scores, ${when}${a.members ? ` (${a.members.join(', ')})` : ''}`;
+};
+// The reply streams in word by word. The server checks every number once the answer is
+// complete: a failed check replaces the text with a retry, and if that fails too the
+// answer is kept with a warning. aria-busy keeps screen readers from reading every word.
+async function ask(question) {
+  chatLog.insertAdjacentHTML('beforeend', `<li class="cm you"><span class="sr">You: </span>${esc(question)}</li>`);
+  chatLog.insertAdjacentHTML('beforeend', '<li class="cm ai pending" id="chat-live"><span class="spin" aria-hidden="true"></span><span>Thinking…</span></li>');
+  const live = $('#chat-live');
+  live.removeAttribute('id');
+  const status = (text) => { live.className = 'cm ai pending'; live.innerHTML = `<span class="spin" aria-hidden="true"></span><span>${esc(text)}</span>`; };
+  let text = '';
+  chatLog.setAttribute('aria-busy', 'true');
+  chatLog.scrollTop = chatLog.scrollHeight;
+  chatSend.disabled = true;
+  const r = range.get();
+  const res = await aiStream('chat', { message: question, history: chatHistory.slice(-10), context: checkRange(r) ? {} : r, repo: getState().syncedRepo }, (ev) => {
+    if (ev.type === 'tool') status(ev.ok ? 'Looking up scores…' : 'Trying that lookup again…');
+    else if (ev.type === 'reset') { text = ''; status(ev.reason === 'check-failed' ? 'Numbers didn\'t match the scores, asking again…' : 'Thinking…'); }
+    else if (ev.type === 'delta') {
+      if (!text) { live.className = 'cm ai'; live.innerHTML = '<span class="sr">Assistant: </span><span class="txt"></span>'; }
+      text += ev.text;
+      $('.txt', live).textContent = text;
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+  });
+  chatSend.disabled = false;
+  if (res.ok) {
+    const d = res.data, used = d.sources.filter((s) => s.ok);
+    live.className = 'cm ai';
+    live.innerHTML = `<span class="sr">Assistant: </span>${aiText(d.reply)}`
+      + (d.grounded
+        ? (used.length ? `<small class="src">Checked with: ${esc(used.map(describeSource).join('; '))}</small>` : '')
+        : `<span class="warn-note"><span aria-hidden="true">⚠ </span><b>Not verified:</b> ${esc(d.ungrounded.join(', '))} ${d.ungrounded.length === 1 ? 'is' : 'are'} not in the scoring results. Check the table above before relying on this answer.</span>`);
+    // only checked answers go back into the conversation, so a wrong number isn't repeated later
+    if (d.grounded) chatHistory.push({ role: 'user', content: question }, { role: 'assistant', content: d.reply });
+  } else {
+    const f = aiFailText(res);
+    live.className = 'cm ai err';
+    live.setAttribute('role', 'alert');
+    live.innerHTML = `<span aria-hidden="true">⚠ </span><b>${esc(f.title)}</b> ${esc(f.text)}`;
+  }
+  chatLog.setAttribute('aria-busy', 'false');
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+$('#chat-form').onsubmit = (e) => {
+  e.preventDefault();
+  const q = chatQ.value.trim();
+  if (!q || chatSend.disabled) return;
+  chatQ.value = '';
+  ask(q);
+};
+$$('[data-q]').forEach((b) => (b.onclick = () => { if (!chatSend.disabled) ask(b.dataset.q); chatQ.focus(); }));
 load();
 </script>
 </body></html>
