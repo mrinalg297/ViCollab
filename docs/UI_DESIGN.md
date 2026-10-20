@@ -259,3 +259,39 @@ Isha Rao,isha-rao,QA and docs,16,825,7.2,3.3,5.7,2026-07-27,2026-10-18
 | `scripts/ui-design-walkthrough.js`, `scripts/ui-a11y-audit.js` | Walkthrough and accessibility audit |
 
 **Run:** `npm install`, then `npm start`, then open `http://localhost:3000/app/`. Start on **Connect GitHub**, then Authorize, then Sync now.
+
+## 8. AI features
+
+Four optional features run on a local model (Qwen3 8B through Ollama). **The AI never changes a score.** The numbers always come from `scoreContributions`, and the AI only explains, labels and summarises them. Every AI spot carries an **AI · local** tag and a "may be wrong" note, so it is never confused with the computed data.
+
+| Where | Element | What it does |
+|---|---|---|
+| Screen 2 | **Ask about contributions** (chat card below the table) | Free-text questions such as "Who did the most in Sprint 1?", plus three example chips. The model makes one call to `score_contributions` with a period ("Sprint 1", "last 4 weeks", "week 5"), and the server runs the real scoring on the synced commits. The server also works out every comparison: rank, above the limit, distance from an equal share, inactive weeks, top and bottom, and whether the work is balanced. The model only repeats these, so "who contributed least?" or "is the work balanced?" are answered from computed facts, not the model's own arithmetic. The reply **streams in word by word**. When it is complete, the server checks every number against the tool results. If the check fails, the text is replaced with "Numbers didn't match the scores, asking again…". If the retry fails too, the answer stays with a yellow **⚠ Not verified: 88.8 is not in the scoring results** note, and it is left out of the conversation history. A checked answer ends with **"Checked with: scores, Sprint 1 (Meera)"**. The current date range is sent along, so "this range" works. |
+| Screen 2 | **Why:** inside the yellow dominance banner | One or two sentences on why the member is above 60% (more commits, bigger commits, or both), and **Where the score may mislead**: up to three caveats such as docs/test work producing few lines, or scaffolding producing many. The numbers are checked the same way as in chat. Saved per date range, with the same **↻ Regenerate** button. |
+| Screen 3 | **Summary** card | A 2–3 sentence summary written from this member's computed stats, weekly commits, role, skills and commit messages. If their role doesn't match their commits, the summary says so and a yellow **Role and commits don't match** badge appears. The text is saved per member and date range, so coming back shows the same summary at once (45 ms after a reload). The footer says when it was written, and **↻ Regenerate** writes a new one. |
+| Screen 3 | **Commit types** card | Each scored commit in the range is labelled feat / fix / test / docs / refactor / chore, and tiny ones are marked trivial. It shows one bar per type with count and %, the trivial count, and **View label per commit**. For context only, and labels are cached by sha. |
+
+![Dashboard, Sprint 1: AI explanation in the warning banner and a chat answer](ui-screens/19-ai-dashboard-sprint1.png)
+
+![Member detail: AI summary and commit types (Isha Rao, all 12 weeks)](ui-screens/20-ai-member-isha.png)
+
+![Phone, dark mode: Kabir Singh with AI cards](ui-screens/21-ai-phone-dark-member.png)
+
+![Ollama not running: the AI spots say "AI unavailable", everything else works](ui-screens/22-ai-unavailable.png)
+
+### Design decisions
+
+* **Consistent:** the chat panel and AI cards reuse `.card`, `.chips`, `.btn`, `.banner`, the spinner and the theme tokens, so light and dark mode work without new colours. The type bars use the existing validated `--bar` colour (one series, so one colour and no legend), with a rounded data end and the value as text on every row.
+* **Feedback:** each AI spot first shows a spinner and a plain message ("Looking up scores…", "Writing a summary…", "Labelling 13 commits…"). Chat answers then appear as they are generated, usually starting in under a second. The **Ask** button is disabled while waiting. The AI cards load *after* the rest of the page, so slow answers never hold up the scores.
+* **Saved AI text:** summaries and explanations show "generated 5 min ago" and a **↻ Regenerate** button (labelled "Regenerate summary" / "Regenerate explanation" for screen readers). Focus stays on the button after it runs. If regenerating fails, the saved text stays and an error toast explains why.
+* **Errors:** when Ollama is off the server answers 503, and each spot shows **⚠ AI unavailable**, with how to start it, in the spot's own place. The table, charts, export and warnings work as before. An answer that fails validation twice shows "AI answer not available" instead of an unchecked number.
+* **Accessible:** the chat log is an ordered list with `aria-live="polite"` and hidden "You:" / "Assistant:" labels. While a reply streams in, the log has `aria-busy="true"`, so a screen reader reads the finished answer once instead of every word. The question input has a label, and errors use `role="alert"`. The AI note in the banner has its own `role="status"`, and the type bars are `aria-hidden` because their values are in the text. Model text is escaped before display (only `**bold**` and line breaks are kept).
+* **Responsive:** at phone width the chat input and **Ask** button stack, bubbles use the full width, and the AI cards drop to one column. There is no sideways page scroll at 390 px on the dashboard or member page.
+* **No repeated work:** answers are remembered per page and per range, so resizing, searching or **Show all** doesn't ask the model again. A range change discards an older, slower answer instead of showing it under the wrong dates.
+
+### Evidence
+
+* `npm test`: **177 tests, all passing**. That's the original 64 unchanged, plus 113 new ones in `tests/ai-client.test.js`, `tests/ai-api.test.js` and `tests/ai-stream.test.js` (streaming, one tool call, periods, keep_alive, the precomputed facts, saved text and Regenerate). For each AI endpoint they cover success, invalid model JSON (retried once, then 502), AI unavailable (503) and bad input (400/404, with the model never called). They use a fake AI client, so no test needs a running model. One test checks that classifying every commit leaves `POST /api/contributions/score` output unchanged. `scoring.js` was not changed.
+* Postman: AI-01 to AI-11 added through `scripts/build-postman.js` (AI-09 is the streamed chat, AI-10/11 are Regenerate). Newman ran 25 requests and 62 assertions with 0 failures, both with Ollama running and with Ollama unreachable.
+* Checked against the real `qwen3:8b` (Ollama 0.40.4): the chat answers "Who did the most in Sprint 1?" with Kabir 52% / 77.4% / 62.2, matching `scoreContributions`. Isha's 16 commits are labelled 8 test + 8 docs. Measured times: chat answers start in 0.7–0.9 s and finish in 1.1–2.7 s with the model loaded (they took 30–50 s with thinking on and two tool calls); summary or explanation 2–4 s; 28 commits classified in about 24 s.
+* Known limits: the grounding check verifies *numbers*, not wording or comparisons. In testing the summary called Kabir's early-then-quiet weeks "steady". With thinking off, the chat once said 48.6 was "above the 60% limit" (2 of 8 runs). After the server started precomputing comparisons, it was right in 40 of 40 live runs across 12 questions; wording such as "significantly above" for 62.2 is still the model's own. Regenerate failed validation in 1 of 16 summary tries (the page keeps the old text). That's why AI text is labelled "may be wrong" and the computed table stays the source of truth.

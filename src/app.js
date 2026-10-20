@@ -1,8 +1,12 @@
 const path = require('path');
 const express = require('express');
 const { scoreContributions, ScoringInputError } = require('./scoring');
+const { createAiClient } = require('./ai');
+const aiRoutes = require('./ai-routes');
 
 const app = express();
+// the LLM client used by /api/ai/*; tests replace it with a fake
+app.locals.ai = createAiClient();
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -34,6 +38,8 @@ app.post('/api/contributions/score', (req, res, next) => {
     next(err);
   }
 });
+
+app.use('/api/ai', aiRoutes);
 
 // unknown /api routes get JSON instead of Express's HTML page
 app.use('/api', (req, res) => {

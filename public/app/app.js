@@ -305,3 +305,72 @@ function rangeControls(el, onChange) {
     get: () => ({ since: since.value, until: until.value }),
   };
 }
+
+/* ---------- AI features (local LLM behind /api/ai, see src/ai-routes.js) ---------- */
+// Successful answers are kept for the page's lifetime so re-renders (resize, search,
+// "show all") don't ask the model again. Failed calls are forgotten so a retry works.
+// refresh: ask the server for new text (regenerate) and keep that one from now on.
+const aiMemo = new Map();
+function aiApi(path, body, { memo = true, refresh = false } = {}) {
+  const key = path + ' ' + JSON.stringify(body || {});
+  if (memo && !refresh && aiMemo.has(key)) return aiMemo.get(key);
+  const send = refresh ? { ...body, regenerate: true } : body || {};
+  const p = (async () => {
+    try {
+      const res = await fetch('/api/ai/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(send) });
+      const data = await res.json().catch(() => ({ error: 'The server did not return JSON' }));
+      return { ok: res.ok, status: res.status, data };
+    } catch {
+      return { ok: false, status: 0, data: { error: 'Could not reach the server. Is it running (npm start)?' } };
+    }
+  })();
+  if (memo) {
+    aiMemo.set(key, p);
+    p.then((r) => { if (!r.ok) aiMemo.delete(key); });
+  }
+  return p;
+}
+// Streaming call: the server sends one JSON event per line (tool, delta, reset, done or error).
+// onEvent sees each one as it arrives; the result has the same { ok, status, data } shape as aiApi.
+async function aiStream(path, body, onEvent) {
+  try {
+    const res = await fetch('/api/ai/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, stream: true }) });
+    // errors before the answer started (bad input, AI unavailable) are plain JSON
+    if (!res.ok || !(res.headers.get('content-type') || '').includes('ndjson')) {
+      return { ok: false, status: res.status, data: await res.json().catch(() => ({ error: 'The server did not return JSON' })) };
+    }
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buffer = '', last = null;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (line) { last = JSON.parse(line); onEvent(last); }
+      }
+    }
+    if (last && last.type === 'done') return { ok: true, status: 200, data: last };
+    if (last && last.type === 'error') return { ok: false, status: last.status, data: { error: last.error } };
+    return { ok: false, status: 0, data: { error: 'The answer stopped before it finished. Try again.' } };
+  } catch {
+    return { ok: false, status: 0, data: { error: 'Could not reach the server. Is it running (npm start)?' } };
+  }
+}
+// short message for a failed AI call: 503 means Ollama isn't running, the rest of the app still works
+function aiFailText(res) {
+  if (res.status === 503) return { title: 'AI unavailable', text: 'Start Ollama (ollama serve) with qwen3:8b pulled. Scores and charts still work without it.' };
+  return { title: 'AI answer not available', text: res.data.error || 'Something went wrong.' };
+}
+function aiFail(el, res) {
+  const f = aiFailText(res);
+  el.innerHTML = `<p class="ai-off" role="status"><span aria-hidden="true">⚠</span><span><b>${esc(f.title)}</b> ${esc(f.text)}</span></p>`;
+}
+const aiLoading = (text) => `<p class="ai-off" role="status"><span class="spin" aria-hidden="true"></span><span>${esc(text)}</span></p>`;
+// footer for saved AI text: who wrote it, when, and a button to write it again
+const aiMeta = (data, note, label) => `<div class="ai-meta"><small class="ai-foot">${esc(data.model)} · generated ${fmt.ago(data.generatedAt)}. ${esc(note)}</small>
+  <button class="btn ghost sm" type="button" data-regen aria-label="${esc(label)}"><span aria-hidden="true">↻</span>Regenerate</button></div>`;
+// model text is shown as text: escaped, **bold** kept, line breaks kept
+const aiText = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');

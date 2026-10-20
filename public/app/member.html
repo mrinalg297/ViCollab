@@ -23,6 +23,7 @@ const who = member(login);
 shell('member:' + login);
 const content = $('#content');
 let showAll = false;
+const TYPE_NAMES = [['feat', 'Feature'], ['fix', 'Fix'], ['test', 'Test'], ['docs', 'Docs'], ['refactor', 'Refactor'], ['chore', 'Chore']];
 
 if (!who) {
   $('#head').innerHTML = '<div><h1>Member not found</h1></div>';
@@ -123,6 +124,18 @@ if (!who) {
           </dl>
         </section>
       </div>
+      <div class="grid g2 mb" id="ai-row">
+        <section class="card" aria-labelledby="sum-h">
+          <h2 id="sum-h">Summary<span class="ai-tag">AI · local</span></h2>
+          <p class="sub">Written from the stats on this page, the weekly commits, role and skills.</p>
+          <div id="ai-sum">${aiLoading('Writing a summary…')}</div>
+        </section>
+        <section class="card" aria-labelledby="types-h">
+          <h2 id="types-h">Commit types<span class="ai-tag">AI · local</span></h2>
+          <p class="sub">What each scored commit in this range is about. For context only: it doesn't change the score.</p>
+          <div id="ai-types">${aiLoading(`Labelling ${scored.length} commits…`)}</div>
+        </section>
+      </div>
       <section class="card" aria-labelledby="list-h">
         <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
           <h2 id="list-h">Commits (${list.length})</h2>
@@ -151,6 +164,48 @@ if (!who) {
       const next = $$('.commits li')[8];
       if (next) { next.tabIndex = -1; next.focus(); }
     };
+    loadAi(++aiRun, r, scored);
+  }
+
+  // AI cards load after the page; a newer load() (range change) wins over an older answer
+  let aiRun = 0;
+  const current = (run, id) => run === aiRun && $(id);
+
+  // the server keeps the summary per member and range, so a revisit shows the same text at once;
+  // Regenerate asks for a new one
+  async function showSummary(run, body, refresh = false) {
+    if (refresh && current(run, '#ai-sum')) $('#ai-sum').innerHTML = aiLoading('Writing a new summary…');
+    const res = await aiApi(`summary/${login}`, body, { refresh });
+    const el = current(run, '#ai-sum');
+    if (!el) return;
+    // a failed Regenerate keeps the saved summary (failures are never saved on the server)
+    if (!res.ok && refresh) { toast('Couldn\'t write a new summary', aiFailText(res).title, 'err'); return showSummary(run, body); }
+    if (!res.ok) return aiFail(el, res);
+    el.innerHTML = `<p class="ai-sum">${aiText(res.data.summary)}</p>
+      ${res.data.roleMismatch ? `<p style="margin-top:10px"><span class="badge wait"><span>Role and commits don't match</span></span></p>` : ''}
+      ${aiMeta(res.data, 'Numbers are checked against the scores, wording may be off.', 'Regenerate summary')}`;
+    $('[data-regen]', el).onclick = () => showSummary(run, body, true);
+    if (refresh) $('[data-regen]', el).focus();
+  }
+  async function loadAi(run, r, scored) {
+    // summary and labels are asked for together; Ollama answers them in turn
+    showSummary(run, { since: r.since, until: r.until, repo: getState().syncedRepo });
+    const res = await aiApi('classify', { commits: scored.map(({ sha, message }) => ({ sha, message })) });
+    const el = current(run, '#ai-types');
+    if (!el) return;
+    if (!res.ok) return aiFail(el, res);
+    const counts = Object.fromEntries(TYPE_NAMES.map(([t]) => [t, 0]));
+    res.data.results.forEach((x) => counts[x.type]++);
+    const total = res.data.results.length, trivial = res.data.results.filter((x) => x.trivial).length;
+    const pctOf = (n) => Math.round((n / total) * 100);
+    el.innerHTML = `<ul class="types">${TYPE_NAMES.map(([t, label]) => `<li class="ty">
+        <b>${label}</b><span class="tr" aria-hidden="true">${counts[t] ? `<span class="fill" style="width:${(counts[t] / total) * 100}%"></span>` : ''}</span>
+        <span class="val">${counts[t]} · ${pctOf(counts[t])}%</span></li>`).join('')}</ul>
+      <p class="help" style="margin-top:12px">${trivial} of ${total} marked trivial (typos, version bumps, formatting).</p>
+      <details class="data"><summary>View label per commit</summary><div class="tw"><table style="min-width:0">
+        <thead><tr><th><span>Commit</span></th><th><span>Message</span></th><th><span>Type</span></th></tr></thead>
+        <tbody>${res.data.results.map((x) => `<tr><td><code>${x.sha.slice(0, 7)}</code></td><td>${esc(scored.find((c) => c.sha === x.sha).message)}</td><td>${x.type}${x.trivial ? ' · trivial' : ''}</td></tr>`).join('')}</tbody></table></div></details>
+      <small class="ai-foot">Labelled by ${esc(res.data.model)}; may be wrong.</small>`;
   }
   load();
 }
